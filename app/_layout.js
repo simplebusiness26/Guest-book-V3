@@ -21,6 +21,9 @@ export default function Layout(){
       <Stack.Screen name="auth/login"/>
       <Stack.Screen name="auth/verify"/>
 
+      <Stack.Screen name="manager/dashboard"/>
+      <Stack.Screen name="manager/qr/[type]/[id]"/>
+
       <Stack.Screen name="business/dashboard"/>
       <Stack.Screen name="business/add"/>
       <Stack.Screen name="business/reviews"/>
@@ -31,8 +34,8 @@ export default function Layout(){
 
       <Stack.Screen name="activity-clubs/index"/>
       <Stack.Screen name="activity-clubs/[id]"/>
-      <Stack.Screen name="activity-clubs/manage/index"/>
-      <Stack.Screen name="activity-clubs/manage/[id]"/>
+      <Stack.Screen name="activity-clubs/add"/>
+      <Stack.Screen name="activity-clubs/edit/[id]"/>
       <Stack.Screen name="activity-clubs/message-board/[id]"/>
 
       <Stack.Screen name="admin/claims"/>
