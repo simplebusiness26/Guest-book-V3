@@ -13,6 +13,7 @@ import {supabase} from "../../services/supabase";
 import {router} from "expo-router";
 
 const TEST_PASSWORD="password123";
+const TEST_SETUP_TOKEN="P0h11qYVK3Ev_wuTUfQxfLjXxj6rtK4vZf4Evq99xaE";
 
 const TEST_ACCOUNTS={
   m:{label:"Manager",email:"manager@test.com"},
@@ -32,12 +33,31 @@ export default function Login(){
   const [loading,setLoading]=useState(false);
   const [quickAccount,setQuickAccount]=useState("");
 
-  async function signIn(loginEmail,loginPassword,accountLabel=""){
+  async function prepareTestAccounts(){
+    const {data,error:setupError}=await supabase.functions.invoke(
+      "guestbook-test-account-setup",
+      {body:{token:TEST_SETUP_TOKEN}}
+    );
+
+    if(setupError){
+      throw new Error(setupError.message || "Test account setup failed");
+    }
+
+    if(data?.ok===false){
+      throw new Error("Test account setup failed");
+    }
+  }
+
+  async function signIn(loginEmail,loginPassword,accountLabel="",prepareTest=false){
     setError("");
     setLoading(true);
     setQuickAccount(accountLabel);
 
     try{
+      if(prepareTest){
+        await prepareTestAccounts();
+      }
+
       const {error:loginError}=await supabase.auth.signInWithPassword({
         email:loginEmail.trim(),
         password:loginPassword
@@ -50,7 +70,7 @@ export default function Login(){
       console.log(loginError);
 
       if(accountLabel){
-        setError(`${accountLabel} quick login failed. The test account password may need resetting.`);
+        setError(`${accountLabel} quick login failed. Please try once more.`);
       }else if(loginError.message?.includes("Invalid login")){
         setError("Incorrect email or password");
       }else{
@@ -67,7 +87,12 @@ export default function Login(){
     const testAccount=TEST_ACCOUNTS[alias];
 
     if(testAccount && !password){
-      await signIn(testAccount.email,TEST_PASSWORD,testAccount.label);
+      await signIn(
+        testAccount.email,
+        TEST_PASSWORD,
+        testAccount.label,
+        true
+      );
       return;
     }
 
@@ -85,7 +110,13 @@ export default function Login(){
 
     setEmail(alias);
     setPassword("");
-    await signIn(account.email,TEST_PASSWORD,account.label);
+
+    await signIn(
+      account.email,
+      TEST_PASSWORD,
+      account.label,
+      true
+    );
   }
 
   return(
