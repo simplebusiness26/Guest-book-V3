@@ -1,115 +1,115 @@
 import React from "react";
-
 import {
-View,
-Text,
-Pressable,
-StyleSheet
+  View,
+  Text,
+  Pressable,
+  StyleSheet
 } from "react-native";
-
-import {router, usePathname} from "expo-router";
-
+import {router,usePathname} from "expo-router";
+import {useNotifications} from "../context/NotificationContext";
 
 export default function Header(){
+  const pathname=usePathname();
+  const {unreadCount}=useNotifications();
 
+  function goBack(){
+    if(pathname!=="/") router.back();
+  }
 
-const pathname = usePathname();
+  return(
+    <View style={styles.container}>
+      <View style={styles.sideArea}>
+        <Pressable
+          accessibilityLabel="Go back"
+          style={styles.iconButton}
+          onPress={goBack}
+        >
+          <Text style={styles.icon}>←</Text>
+        </Pressable>
+      </View>
 
+      <Text style={styles.title}>Guestbook</Text>
 
+      <View style={[styles.sideArea,styles.rightArea]}>
+        <Pressable
+          accessibilityLabel="Open notifications"
+          style={styles.iconButton}
+          onPress={()=>router.push("/notifications")}
+        >
+          <Text style={styles.bell}>🔔</Text>
+          {unreadCount>0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount>99 ? "99+" : unreadCount}</Text>
+            </View>
+          )}
+        </Pressable>
 
-function goBack(){
-
-if(pathname !== "/"){
-
-router.back();
-
+        <Pressable
+          accessibilityLabel="Open menu"
+          style={styles.iconButton}
+          onPress={()=>router.push("/menu")}
+        >
+          <Text style={styles.icon}>☰</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 }
-
-}
-
-
-
-return(
-
-<View style={styles.container}>
-
-
-<Pressable
-
-style={styles.sideButton}
-
-onPress={goBack}
-
->
-
-<Text style={styles.icon}>
-←
-</Text>
-
-</Pressable>
-
-
-
-<Text style={styles.title}>
-Guestbook
-</Text>
-
-
-
-<Pressable
-
-style={styles.sideButton}
-
-onPress={()=>router.push("/menu")}
-
->
-
-<Text style={styles.icon}>
-☰
-</Text>
-
-</Pressable>
-
-
-</View>
-
-);
-
-}
-
-
 
 const styles=StyleSheet.create({
-
-container:{
-height:60,
-flexDirection:"row",
-alignItems:"center",
-justifyContent:"space-between",
-paddingHorizontal:20,
-borderBottomWidth:1,
-borderColor:"#ddd"
-},
-
-
-sideButton:{
-width:40,
-height:40,
-alignItems:"center",
-justifyContent:"center"
-},
-
-
-icon:{
-fontSize:28,
-fontWeight:"bold"
-},
-
-
-title:{
-fontSize:22,
-fontWeight:"bold"
-}
-
-
+  container:{
+    height:60,
+    flexDirection:"row",
+    alignItems:"center",
+    justifyContent:"space-between",
+    paddingHorizontal:12,
+    borderBottomWidth:1,
+    borderColor:"#ddd"
+  },
+  sideArea:{
+    width:88,
+    flexDirection:"row",
+    alignItems:"center"
+  },
+  rightArea:{
+    justifyContent:"flex-end"
+  },
+  iconButton:{
+    width:42,
+    height:42,
+    alignItems:"center",
+    justifyContent:"center",
+    position:"relative"
+  },
+  icon:{
+    fontSize:28,
+    fontWeight:"bold"
+  },
+  bell:{
+    fontSize:22
+  },
+  badge:{
+    position:"absolute",
+    top:2,
+    right:0,
+    minWidth:19,
+    height:19,
+    borderRadius:10,
+    paddingHorizontal:4,
+    backgroundColor:"#d92d20",
+    alignItems:"center",
+    justifyContent:"center",
+    borderWidth:2,
+    borderColor:"white"
+  },
+  badgeText:{
+    color:"white",
+    fontSize:10,
+    fontWeight:"bold"
+  },
+  title:{
+    fontSize:22,
+    fontWeight:"bold",
+    textAlign:"center"
+  }
 });
