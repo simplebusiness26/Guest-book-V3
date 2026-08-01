@@ -27,7 +27,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm install && npx expo export --platform web --clear && npx --yes serve -s dist -l 5000"
+args = "bash scripts/replit-start.sh"
 waitForPort = 5000
 
 [[ports]]
