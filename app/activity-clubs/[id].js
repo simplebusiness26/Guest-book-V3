@@ -175,6 +175,7 @@ export default function ActivityClubProfile(){
   const canOpenBoard=isManager || isApproved;
   const canApply=!membership || ["rejected","left","removed"].includes(membership.status);
   const clubFull=(stats?.spaces_remaining ?? club?.member_limit ?? 0)<=0;
+  const approvedMemberCount=stats?.member_count || 0;
 
   if(loading){
     return <View style={styles.center}><ActivityIndicator size="large"/></View>;
@@ -194,7 +195,9 @@ export default function ActivityClubProfile(){
         <Text style={styles.description}>{club.description}</Text>
         <Text style={styles.price}>{Number(club.price)>0 ? `£${Number(club.price).toFixed(2)} per session` : "Free to attend"}</Text>
         <View style={styles.capacityBox}>
-          <Text style={styles.capacityTitle}>{stats?.member_count || 0} approved members</Text>
+          <Text style={styles.capacityTitle}>
+            {approvedMemberCount} approved {approvedMemberCount===1 ? "member" : "members"}
+          </Text>
           <Text style={styles.capacityText}>{stats?.spaces_remaining ?? club.member_limit} of {club.member_limit} spaces remaining</Text>
         </View>
       </View>
