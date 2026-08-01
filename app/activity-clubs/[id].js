@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {supabase} from "../../services/supabase";
+import {useFeedback} from "../../context/FeedbackContext";
 
 function formatDate(value){
   if(!value) return "Date to be confirmed";
@@ -25,6 +26,7 @@ function formatDate(value){
 
 export default function ActivityClubProfile(){
   const {id}=useLocalSearchParams();
+  const {showFeedback}=useFeedback();
   const [club,setClub]=useState(null);
   const [stats,setStats]=useState(null);
   const [sessions,setSessions]=useState([]);
@@ -150,11 +152,11 @@ export default function ActivityClubProfile(){
     setSubmitting(false);
 
     if(applyError){
-      Alert.alert("Application not sent",applyError.message);
+      showFeedback(applyError.message,"error","Application not sent");
       return;
     }
 
-    Alert.alert("Application sent","The manager will review your request in their dashboard.");
+    showFeedback(`Your request to join ${club.name} was sent to the manager.`,"success","Join request sent");
     await loadPage();
   }
 
@@ -192,25 +194,15 @@ export default function ActivityClubProfile(){
       {!isManager && canApply && !clubFull && <View style={styles.applyBox}>
         <Text style={styles.applyTitle}>{membership ? "Apply again" : "Request to join"}</Text>
         <Text style={styles.applyText}>The manager must approve you before you can see or post on the private message board.</Text>
-        <TextInput
-          style={styles.noteInput}
-          placeholder="Optional message to the manager"
-          value={applicationNote}
-          onChangeText={setApplicationNote}
-          multiline
-          maxLength={300}
-        />
+        <TextInput style={styles.noteInput} placeholder="Optional message to the manager" value={applicationNote} onChangeText={setApplicationNote} multiline maxLength={300}/>
         <Pressable style={styles.primaryButton} onPress={applyToJoin} disabled={submitting}>
           <Text style={styles.buttonText}>{submitting ? "Sending application..." : "Send Join Request"}</Text>
         </Pressable>
       </View>}
 
       {!isManager && canApply && clubFull && <View style={styles.fullBox}><Text style={styles.pendingTitle}>Club currently full</Text><Text>The manager has reached the approved member limit.</Text></View>}
-
       {!isManager && membership?.status==="pending" && <View style={styles.pendingBox}><Text style={styles.pendingTitle}>Application pending</Text><Text>The manager must approve you before the private message board unlocks.</Text></View>}
-
       {!isManager && membership?.status==="rejected" && <View style={styles.rejectedBox}><Text style={styles.pendingTitle}>Application not approved</Text><Text>You can still view the public club profile and can submit another request later.</Text></View>}
-
       {canOpenBoard && <Pressable style={styles.boardButton} onPress={()=>router.push(`/activity-clubs/message-board/${club.id}`)}><Text style={styles.buttonText}>Open Members’ Message Board</Text></Pressable>}
 
       <View style={styles.section}>
