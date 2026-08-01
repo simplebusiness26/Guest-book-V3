@@ -18,5 +18,5 @@ if [ ! -f dist/index.html ]; then
   exit 1
 fi
 
-echo "[Guestbook] Serving static preview on port 5000..."
-exec npx --yes serve -s dist -l tcp://0.0.0.0:5000
+echo "[Guestbook] Serving static preview on port 5000 with caching disabled..."
+exec npx --yes serve -s dist -l tcp://0.0.0.0:5000 -c 0
