@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Guestbook",
+    "slug": "guestbook",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "web": {
+      "bundler": "metro"
+    },
+    "android": {
+      "package": "com.guestbook.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.guestbook.app"
+    }
+  }
+}

@@ -1,0 +1,487 @@
+import React,{useState} from "react";
+
+import {
+View,
+Text,
+TextInput,
+Pressable,
+StyleSheet,
+ScrollView,
+Alert,
+ActivityIndicator
+} from "react-native";
+
+import {router} from "expo-router";
+
+import {supabase} from "../../services/supabase";
+
+const ACCOUNT_TYPES=[
+{
+value:"explorer",
+label:"Explorer",
+desc:"Discover places, join activities and leave reviews"
+},
+{
+value:"manager",
+label:"Manager",
+desc:"Manage businesses, properties, activities and events"
+}
+];
+
+export default function Signup(){
+
+
+const [name,setName]=useState("");
+
+const [email,setEmail]=useState("");
+
+const [phone,setPhone]=useState("");
+
+const [password,setPassword]=useState("");
+
+const [accountType,setAccountType]=useState("");
+
+const [loading,setLoading]=useState(false);
+
+
+
+function validEmail(email){
+
+return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+}
+
+
+
+async function signup(){
+
+
+if(
+!name.trim() ||
+!email.trim() ||
+!phone.trim() ||
+!password
+){
+
+Alert.alert(
+"Missing information",
+"Please complete all fields"
+);
+
+return;
+
+}
+
+
+
+if(!validEmail(email.trim())){
+
+Alert.alert(
+"Invalid email",
+"Please enter a valid email address"
+);
+
+return;
+
+}
+
+
+
+if(password.length < 6){
+
+Alert.alert(
+"Password too short",
+"Password must be at least 6 characters"
+);
+
+return;
+
+}
+
+
+
+if(!accountType){
+
+Alert.alert(
+"Choose account type",
+"Please select explorer or manager"
+);
+
+return;
+
+}
+
+
+
+try{
+
+
+setLoading(true);
+
+
+
+const {
+data,
+error
+}=await supabase.auth.signUp({
+
+email:email.trim(),
+
+password
+
+});
+
+
+
+if(error){
+
+throw error;
+
+}
+
+
+
+if(data.user && !data.session){
+
+setLoading(false);
+
+
+Alert.alert(
+"Verify email",
+"Your account has been created. Please verify your email before logging in."
+);
+
+
+router.replace("/auth/login");
+
+return;
+
+}
+
+
+
+const {
+error:profileError
+}=await supabase
+
+.from("profiles")
+
+.upsert({
+
+id:data.user.id,
+
+full_name:name.trim(),
+
+email:email.trim(),
+
+phone:phone.trim(),
+
+account_type:accountType
+
+},{
+onConflict:"id"
+});
+
+
+
+if(profileError){
+
+throw profileError;
+
+}
+
+
+
+setLoading(false);
+
+
+
+Alert.alert(
+"Account created",
+"Welcome to xplorer"
+);
+
+
+
+router.replace("/");
+
+
+
+}
+
+catch(error){
+
+
+console.log(error);
+
+
+
+setLoading(false);
+
+
+
+let message="Something went wrong";
+
+
+
+if(error.message?.toLowerCase().includes("already")){
+
+message="This email already has an account";
+
+}
+
+else if(error.message?.toLowerCase().includes("invalid email")){
+
+message="Please enter a valid email address";
+
+}
+
+else{
+
+message=error.message;
+
+}
+
+
+
+Alert.alert(
+"Signup failed",
+message
+);
+
+
+}
+
+
+}
+
+
+
+return(
+
+<ScrollView
+
+contentContainerStyle={styles.container}
+
+>
+
+
+<Text style={styles.title}>
+Create Account
+</Text>
+
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Name"
+
+value={name}
+
+onChangeText={setName}
+
+/>
+
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Email"
+
+autoCapitalize="none"
+
+keyboardType="email-address"
+
+value={email}
+
+onChangeText={setEmail}
+
+/>
+
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Phone number"
+
+keyboardType="phone-pad"
+
+value={phone}
+
+onChangeText={setPhone}
+
+/>
+
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Password"
+
+secureTextEntry
+
+value={password}
+
+onChangeText={setPassword}
+
+/>
+
+
+
+<Text style={styles.label}>
+I am a:
+</Text>
+
+
+
+{
+ACCOUNT_TYPES.map(type=>(
+
+
+<Pressable
+
+key={type.value}
+
+style={[
+styles.option,
+accountType===type.value && styles.selected
+]}
+
+onPress={()=>setAccountType(type.value)}
+
+>
+
+
+<Text style={styles.optionTitle}>
+{type.label}
+</Text>
+
+
+<Text>
+{type.desc}
+</Text>
+
+
+</Pressable>
+
+
+))
+}
+
+
+
+<Pressable
+
+style={styles.button}
+
+onPress={signup}
+
+disabled={loading}
+
+>
+
+{
+
+loading
+
+?
+
+<View style={styles.loadingContainer}>
+
+<ActivityIndicator color="white"/>
+
+<Text style={styles.buttonText}>
+Creating...
+</Text>
+
+</View>
+
+:
+
+<Text style={styles.buttonText}>
+Create Account
+</Text>
+
+}
+
+</Pressable>
+
+
+
+</ScrollView>
+
+);
+
+}
+
+
+
+const styles=StyleSheet.create({
+
+container:{
+padding:30
+},
+
+title:{
+fontSize:30,
+fontWeight:"bold",
+marginBottom:30
+},
+
+input:{
+borderWidth:1,
+borderRadius:10,
+padding:15,
+marginBottom:15
+},
+
+label:{
+fontSize:18,
+marginBottom:10
+},
+
+option:{
+borderWidth:1,
+borderRadius:10,
+padding:15,
+marginBottom:10
+},
+
+selected:{
+borderWidth:2,
+backgroundColor:"#ddd"
+},
+
+optionTitle:{
+fontWeight:"bold",
+fontSize:16
+},
+
+button:{
+backgroundColor:"#222",
+padding:16,
+borderRadius:10,
+marginTop:20,
+alignItems:"center"
+},
+
+buttonText:{
+color:"white",
+fontWeight:"bold"
+},
+
+loadingContainer:{
+flexDirection:"row",
+alignItems:"center",
+gap:10
+}
+
+});

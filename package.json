@@ -1,0 +1,27 @@
+{
+  "name": "guestbook",
+  "version": "1.0.0",
+  "description": "Local discovery app for Airbnb guests",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-navigation/native": "^7.3.14",
+    "@supabase/supabase-js": "latest",
+    "expo": "latest",
+    "expo-camera": "latest",
+    "expo-image-picker": "~57.0.7",
+    "expo-location": "latest",
+    "expo-router": "latest",
+    "react": "latest",
+    "react-native": "latest",
+    "react-native-maps": "latest",
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "^0.21.2"
+  }
+}
