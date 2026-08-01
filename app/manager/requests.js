@@ -134,7 +134,6 @@ export default function ManagerRequests(){
       .from("activity_memberships")
       .select("*")
       .in("club_id",clubIds)
-      .in("status",["pending","approved"])
       .order("applied_at",{ascending:true});
 
     if(membershipError){
@@ -197,8 +196,12 @@ export default function ManagerRequests(){
       .filter(club=>club.requests.length>0);
   },[clubs,pendingMemberships,targetClubId]);
 
-  const focusedRequest=targetMembershipId
-    ? pendingMemberships.find(item=>item.id===targetMembershipId)
+  const focusedMembership=targetMembershipId
+    ? memberships.find(item=>item.id===targetMembershipId)
+    : null;
+
+  const focusedRequest=focusedMembership?.status==="pending"
+    ? focusedMembership
     : null;
 
   function membershipName(membership){
@@ -321,12 +324,12 @@ export default function ManagerRequests(){
     );
   }
 
-  function renderCompletion(){
-    if(!completedAction) return null;
+  function renderCompletion(action){
+    if(!action) return null;
 
-    const approved=completedAction.status==="approved";
-    const currentApprovedCount=(approvedByClub[completedAction.clubId] || []).length;
-    const memberLabel=completedAction.name || "Explorer";
+    const approved=action.status==="approved";
+    const currentApprovedCount=(approvedByClub[action.clubId] || []).length;
+    const memberLabel=action.name || "Explorer";
 
     return(
       <>
@@ -347,7 +350,7 @@ export default function ManagerRequests(){
 
           <Text style={styles.resultText}>
             {approved
-              ? `${memberLabel} is now a member of ${completedAction.clubName} and has access to the private message board.`
+              ? `${memberLabel} is now a member of ${action.clubName} and has access to the private message board.`
               : `${memberLabel}'s membership request was not approved. They have been notified.`
             }
           </Text>
@@ -360,7 +363,7 @@ export default function ManagerRequests(){
             <View style={styles.resultCapacityTextWrap}>
               <Text style={styles.resultCapacityLabel}>Club capacity</Text>
               <Text style={styles.resultCapacityValue}>
-                {currentApprovedCount} of {completedAction.memberLimit} members approved
+                {currentApprovedCount} of {action.memberLimit} members approved
               </Text>
             </View>
           </View>
@@ -369,9 +372,9 @@ export default function ManagerRequests(){
             style={styles.primaryButton}
             onPress={()=>{
               if(approved){
-                router.push(`/manager/dashboard?club=${completedAction.clubId}&member=${completedAction.userId}&view=members`);
+                router.push(`/manager/dashboard?club=${action.clubId}&member=${action.userId}&view=members`);
               }else{
-                router.replace(`/manager/requests?club=${completedAction.clubId}&view=requests`);
+                router.replace(`/manager/requests?club=${action.clubId}&view=requests`);
               }
             }}
           >
@@ -384,9 +387,9 @@ export default function ManagerRequests(){
             style={styles.inlineLinkButton}
             onPress={()=>{
               if(approved){
-                router.push(`/manager/dashboard?club=${completedAction.clubId}&view=members`);
+                router.push(`/manager/dashboard?club=${action.clubId}&view=members`);
               }else{
-                router.replace(`/manager/requests?club=${completedAction.clubId}&view=requests`);
+                router.replace(`/manager/requests?club=${action.clubId}&view=requests`);
               }
             }}
           >
@@ -447,10 +450,25 @@ export default function ManagerRequests(){
 
   const focusedClub=targetClubId
     ? clubs.find(club=>club.id===targetClubId)
-    : focusedRequest
-      ? clubs.find(club=>club.id===focusedRequest.club_id)
+    : focusedMembership
+      ? clubs.find(club=>club.id===focusedMembership.club_id)
       : null;
 
+  const persistedCompletion=(
+    focusedMembership &&
+    focusedClub &&
+    ["approved","rejected"].includes(focusedMembership.status)
+  ) ? {
+    membershipId:focusedMembership.id,
+    userId:focusedMembership.user_id,
+    name:membershipName(focusedMembership),
+    clubName:focusedClub.name,
+    clubId:focusedClub.id,
+    memberLimit:focusedClub.member_limit || 20,
+    status:focusedMembership.status
+  } : null;
+
+  const completionToShow=completedAction || persistedCompletion;
   const focusedRequestMissing=!!targetMembershipId && !focusedRequest;
 
   return(
@@ -508,14 +526,14 @@ export default function ManagerRequests(){
         </View>
       )}
 
-      {focusedRequestMissing && completedAction && renderCompletion()}
+      {focusedRequestMissing && completionToShow && renderCompletion(completionToShow)}
 
-      {focusedRequestMissing && !completedAction && (
+      {focusedRequestMissing && !completionToShow && (
         <View style={styles.completedCard}>
           <Text style={styles.completedIcon}>✓</Text>
           <Text style={styles.completedTitle}>This request is no longer pending</Text>
           <Text style={styles.completedText}>
-            It may already have been approved or rejected.
+            Its current status is no longer an approval decision.
           </Text>
 
           {focusedClub && (
