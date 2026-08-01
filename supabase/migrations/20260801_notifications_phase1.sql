@@ -127,61 +127,64 @@ begin
 
   applicant_display_name := coalesce(nullif(new.applicant_name, ''), 'An explorer');
 
-  if new.status = 'pending'
-     and (tg_op = 'INSERT' or old.status is distinct from 'pending') then
-    event_stamp := coalesce(new.applied_at::text, new.created_at::text, clock_timestamp()::text);
+  if new.status = 'pending' then
+    if tg_op = 'INSERT'
+       or (tg_op = 'UPDATE' and old.status is distinct from 'pending') then
+      event_stamp := coalesce(new.applied_at::text, clock_timestamp()::text);
 
-    perform public.create_notification(
-      club_manager_id,
-      new.user_id,
-      'activity_join_request',
-      'New membership request',
-      applicant_display_name || ' requested to join ' || club_name || '.',
-      'activity_club',
-      new.club_id,
-      '/manager/dashboard?club=' || new.club_id::text,
-      jsonb_build_object(
-        'membership_id', new.id,
-        'club_id', new.club_id,
-        'status', new.status
-      ),
-      'activity_join_request:' || new.id::text || ':' || event_stamp
-    );
+      perform public.create_notification(
+        club_manager_id,
+        new.user_id,
+        'activity_join_request',
+        'New membership request',
+        applicant_display_name || ' requested to join ' || club_name || '.',
+        'activity_club',
+        new.club_id,
+        '/manager/dashboard?club=' || new.club_id::text,
+        jsonb_build_object(
+          'membership_id', new.id,
+          'club_id', new.club_id,
+          'status', new.status
+        ),
+        'activity_join_request:' || new.id::text || ':' || event_stamp
+      );
+    end if;
   end if;
 
-  if tg_op = 'UPDATE'
-     and new.status is distinct from old.status
-     and new.status in ('approved', 'rejected', 'removed') then
+  if tg_op = 'UPDATE' then
+    if new.status is distinct from old.status
+       and new.status in ('approved', 'rejected', 'removed') then
 
-    if new.status = 'approved' then
-      status_title := 'Membership approved';
-      status_message := 'Your request to join ' || club_name || ' was approved. The private message board is now unlocked.';
-    elsif new.status = 'rejected' then
-      status_title := 'Membership request not approved';
-      status_message := 'Your request to join ' || club_name || ' was not approved. You can still view the public club profile.';
-    else
-      status_title := 'Club membership ended';
-      status_message := 'You were removed from ' || club_name || ' and no longer have access to its private message board.';
+      if new.status = 'approved' then
+        status_title := 'Membership approved';
+        status_message := 'Your request to join ' || club_name || ' was approved. The private message board is now unlocked.';
+      elsif new.status = 'rejected' then
+        status_title := 'Membership request not approved';
+        status_message := 'Your request to join ' || club_name || ' was not approved. You can still view the public club profile.';
+      else
+        status_title := 'Club membership ended';
+        status_message := 'You were removed from ' || club_name || ' and no longer have access to its private message board.';
+      end if;
+
+      event_stamp := coalesce(new.decided_at::text, clock_timestamp()::text);
+
+      perform public.create_notification(
+        new.user_id,
+        club_manager_id,
+        'activity_membership_' || new.status,
+        status_title,
+        status_message,
+        'activity_club',
+        new.club_id,
+        '/activity-clubs/' || new.club_id::text,
+        jsonb_build_object(
+          'membership_id', new.id,
+          'club_id', new.club_id,
+          'status', new.status
+        ),
+        'activity_membership_status:' || new.id::text || ':' || new.status || ':' || event_stamp
+      );
     end if;
-
-    event_stamp := coalesce(new.decided_at::text, clock_timestamp()::text);
-
-    perform public.create_notification(
-      new.user_id,
-      club_manager_id,
-      'activity_membership_' || new.status,
-      status_title,
-      status_message,
-      'activity_club',
-      new.club_id,
-      '/activity-clubs/' || new.club_id::text,
-      jsonb_build_object(
-        'membership_id', new.id,
-        'club_id', new.club_id,
-        'status', new.status
-      ),
-      'activity_membership_status:' || new.id::text || ':' || new.status || ':' || event_stamp
-    );
   end if;
 
   return new;
