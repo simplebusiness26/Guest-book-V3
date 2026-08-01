@@ -11,8 +11,10 @@ import {
 import {router} from "expo-router";
 import {supabase} from "../../services/supabase";
 import LocationPicker from "../../components/LocationPicker";
+import {useFeedback} from "../../context/FeedbackContext";
 
 export default function AddActivityClub(){
+  const {showFeedback}=useFeedback();
   const [name,setName]=useState("");
   const [category,setCategory]=useState("");
   const [description,setDescription]=useState("");
@@ -52,6 +54,7 @@ export default function AddActivityClub(){
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){
       setLoading(false);
+      showFeedback("You must be logged in to create an Activity Club.","error","Club not created");
       router.replace("/auth/login");
       return;
     }
@@ -76,11 +79,11 @@ export default function AddActivityClub(){
 
     if(error){
       console.log(error);
-      Alert.alert("Club not created",error.message);
+      showFeedback(error.message,"error","Club not created");
       return;
     }
 
-    Alert.alert("Activity Club created","Your listing is now available in the manager dashboard and on the map.");
+    showFeedback(`${name.trim()} was created and added to the map and dashboard.`,"success","Activity Club created");
     router.replace("/manager/dashboard");
   }
 
@@ -91,30 +94,12 @@ export default function AddActivityClub(){
 
       <TextInput style={styles.input} placeholder="Club name *" value={name} onChangeText={setName}/>
       <TextInput style={styles.input} placeholder="Category *" value={category} onChangeText={setCategory}/>
-      <TextInput
-        style={[styles.input,styles.multiline]}
-        placeholder="Description"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-      />
+      <TextInput style={[styles.input,styles.multiline]} placeholder="Description" value={description} onChangeText={setDescription} multiline/>
 
       <LocationPicker onChange={setSelectedLocation}/>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Price per session"
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="decimal-pad"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Maximum approved members"
-        value={memberLimit}
-        onChangeText={setMemberLimit}
-        keyboardType="number-pad"
-      />
+      <TextInput style={styles.input} placeholder="Price per session" value={price} onChangeText={setPrice} keyboardType="decimal-pad"/>
+      <TextInput style={styles.input} placeholder="Maximum approved members" value={memberLimit} onChangeText={setMemberLimit} keyboardType="number-pad"/>
 
       <Pressable style={styles.button} onPress={createClub} disabled={loading}>
         {loading ? <ActivityIndicator color="white"/> : <Text style={styles.buttonText}>Create Activity Club</Text>}
@@ -124,12 +109,5 @@ export default function AddActivityClub(){
 }
 
 const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:"#f5f7fb"},
-  content:{padding:20,paddingBottom:50},
-  title:{fontSize:30,fontWeight:"bold"},
-  subtitle:{color:"#666",lineHeight:22,marginTop:7,marginBottom:20},
-  input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",borderRadius:11,padding:14,marginBottom:14},
-  multiline:{minHeight:110,textAlignVertical:"top"},
-  button:{backgroundColor:"#5633a8",padding:16,borderRadius:12,alignItems:"center"},
-  buttonText:{color:"white",fontWeight:"bold"}
+  container:{flex:1,backgroundColor:"#f5f7fb"},content:{padding:20,paddingBottom:50},title:{fontSize:30,fontWeight:"bold"},subtitle:{color:"#666",lineHeight:22,marginTop:7,marginBottom:20},input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",borderRadius:11,padding:14,marginBottom:14},multiline:{minHeight:110,textAlignVertical:"top"},button:{backgroundColor:"#5633a8",padding:16,borderRadius:12,alignItems:"center"},buttonText:{color:"white",fontWeight:"bold"}
 });
