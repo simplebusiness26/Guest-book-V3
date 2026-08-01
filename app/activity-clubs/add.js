@@ -10,27 +10,40 @@ import {
 } from "react-native";
 import {router} from "expo-router";
 import {supabase} from "../../services/supabase";
+import LocationPicker from "../../components/LocationPicker";
 
 export default function AddActivityClub(){
   const [name,setName]=useState("");
   const [category,setCategory]=useState("");
   const [description,setDescription]=useState("");
-  const [location,setLocation]=useState("");
-  const [address,setAddress]=useState("");
   const [price,setPrice]=useState("0");
+  const [memberLimit,setMemberLimit]=useState("20");
+  const [selectedLocation,setSelectedLocation]=useState(null);
   const [loading,setLoading]=useState(false);
 
   async function createClub(){
     if(loading) return;
 
-    if(!name.trim() || !category.trim() || !location.trim()){
-      Alert.alert("Missing information","Name, category and location are required.");
+    if(!name.trim() || !category.trim()){
+      Alert.alert("Missing information","Name and category are required.");
+      return;
+    }
+
+    if(!selectedLocation){
+      Alert.alert("Choose a location","Search for the club address and select the correct result.");
       return;
     }
 
     const numericPrice=Number(price || 0);
+    const numericLimit=Number(memberLimit);
+
     if(Number.isNaN(numericPrice) || numericPrice<0){
       Alert.alert("Invalid price","Enter a valid price or 0 for a free club.");
+      return;
+    }
+
+    if(!Number.isInteger(numericLimit) || numericLimit<1){
+      Alert.alert("Invalid member limit","Enter the maximum number of approved members.");
       return;
     }
 
@@ -43,20 +56,21 @@ export default function AddActivityClub(){
       return;
     }
 
-    const {data,error}=await supabase
+    const {error}=await supabase
       .from("activity_clubs")
       .insert({
         manager_id:user.id,
         name:name.trim(),
         category:category.trim(),
         description:description.trim(),
-        location:location.trim(),
-        address:address.trim(),
+        location:selectedLocation.location || "",
+        address:selectedLocation.address,
+        latitude:selectedLocation.latitude,
+        longitude:selectedLocation.longitude,
         price:numericPrice,
+        member_limit:numericLimit,
         status:"open"
-      })
-      .select("id")
-      .single();
+      });
 
     setLoading(false);
 
@@ -66,7 +80,7 @@ export default function AddActivityClub(){
       return;
     }
 
-    Alert.alert("Activity Club created","Your listing is now available in the manager dashboard.");
+    Alert.alert("Activity Club created","Your listing is now available in the manager dashboard and on the map.");
     router.replace("/manager/dashboard");
   }
 
@@ -84,14 +98,22 @@ export default function AddActivityClub(){
         onChangeText={setDescription}
         multiline
       />
-      <TextInput style={styles.input} placeholder="Town or area *" value={location} onChangeText={setLocation}/>
-      <TextInput style={styles.input} placeholder="Full address" value={address} onChangeText={setAddress}/>
+
+      <LocationPicker onChange={setSelectedLocation}/>
+
       <TextInput
         style={styles.input}
         placeholder="Price per session"
         value={price}
         onChangeText={setPrice}
         keyboardType="decimal-pad"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Maximum approved members"
+        value={memberLimit}
+        onChangeText={setMemberLimit}
+        keyboardType="number-pad"
       />
 
       <Pressable style={styles.button} onPress={createClub} disabled={loading}>
