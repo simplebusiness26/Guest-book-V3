@@ -3,36 +3,24 @@ import {View,Text,Pressable,StyleSheet,Alert,Platform} from "react-native";
 
 const FeedbackContext=createContext(null);
 
-function installWebAlertFallback(){
-  if(Platform.OS!=="web" || typeof window==="undefined"){
+function installWebAlertFallback(showDialog){
+  if(Platform.OS!=="web"){
     return()=>{};
   }
 
   const originalAlert=Alert.alert;
 
-  Alert.alert=(title,message,buttons)=>{
-    const text=[title,message].filter(Boolean).join("\n\n");
-    const actions=Array.isArray(buttons) ? buttons : [];
+  Alert.alert=(title,message,buttons,options)=>{
+    const actions=Array.isArray(buttons) && buttons.length
+      ? buttons
+      : [{text:"OK"}];
 
-    if(actions.length<=1){
-      window.alert(text);
-      actions[0]?.onPress?.();
-      return;
-    }
-
-    const cancelAction=actions.find(action=>action.style==="cancel");
-    const confirmAction=
-      actions.find(action=>action.style==="destructive") ||
-      actions.find(action=>action.style!=="cancel") ||
-      actions[0];
-
-    const confirmed=window.confirm(text);
-
-    if(confirmed){
-      confirmAction?.onPress?.();
-    }else{
-      cancelAction?.onPress?.();
-    }
+    showDialog({
+      title:title || "Confirm action",
+      message:message || "",
+      buttons:actions,
+      cancelable:options?.cancelable!==false
+    });
   };
 
   return()=>{
@@ -42,10 +30,11 @@ function installWebAlertFallback(){
 
 export function FeedbackProvider({children}){
   const [notice,setNotice]=useState(null);
+  const [dialog,setDialog]=useState(null);
   const timerRef=useRef(null);
 
   useEffect(()=>{
-    const removeWebAlertFallback=installWebAlertFallback();
+    const removeWebAlertFallback=installWebAlertFallback(setDialog);
 
     return()=>{
       removeWebAlertFallback();
@@ -75,6 +64,15 @@ export function FeedbackProvider({children}){
       setNotice(null);
       timerRef.current=null;
     },4500);
+  }
+
+  function closeDialog(){
+    setDialog(null);
+  }
+
+  function runDialogAction(action){
+    setDialog(null);
+    action?.onPress?.();
   }
 
   return(
@@ -112,6 +110,54 @@ export function FeedbackProvider({children}){
             >
               <Text style={styles.closeText}>×</Text>
             </Pressable>
+          </View>
+        )}
+
+        {!!dialog && (
+          <View style={styles.dialogOverlay}>
+            <Pressable
+              style={styles.dialogBackdrop}
+              onPress={dialog.cancelable ? closeDialog : undefined}
+            />
+
+            <View
+              accessibilityRole="alert"
+              style={styles.dialogCard}
+            >
+              <Text style={styles.dialogTitle}>{dialog.title}</Text>
+              {!!dialog.message && (
+                <Text style={styles.dialogMessage}>{dialog.message}</Text>
+              )}
+
+              <View style={styles.dialogButtons}>
+                {dialog.buttons.map((action,index)=>{
+                  const destructive=action.style==="destructive";
+                  const cancel=action.style==="cancel";
+
+                  return(
+                    <Pressable
+                      key={`${action.text || "Action"}-${index}`}
+                      style={[
+                        styles.dialogButton,
+                        destructive
+                          ? styles.destructiveButton
+                          : cancel
+                            ? styles.cancelButton
+                            : styles.confirmButton
+                      ]}
+                      onPress={()=>runDialogAction(action)}
+                    >
+                      <Text style={[
+                        styles.dialogButtonText,
+                        cancel && styles.cancelButtonText
+                      ]}>
+                        {action.text || "OK"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
           </View>
         )}
       </View>
@@ -164,5 +210,37 @@ const styles=StyleSheet.create({
   title:{fontSize:16,fontWeight:"bold",color:"#1f2933"},
   message:{fontSize:14,color:"#34404a",marginTop:3,lineHeight:19},
   closeButton:{paddingHorizontal:8,paddingVertical:4},
-  closeText:{fontSize:26,lineHeight:27,color:"#34404a"}
+  closeText:{fontSize:26,lineHeight:27,color:"#34404a"},
+  dialogOverlay:{
+    ...StyleSheet.absoluteFillObject,
+    zIndex:20000,
+    elevation:40,
+    alignItems:"center",
+    justifyContent:"center",
+    padding:22
+  },
+  dialogBackdrop:{
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor:"rgba(0,0,0,0.62)"
+  },
+  dialogCard:{
+    width:"100%",
+    maxWidth:430,
+    backgroundColor:"white",
+    borderRadius:18,
+    padding:22,
+    shadowColor:"#000",
+    shadowOpacity:0.28,
+    shadowRadius:18,
+    shadowOffset:{width:0,height:8}
+  },
+  dialogTitle:{fontSize:22,fontWeight:"bold",color:"#171717"},
+  dialogMessage:{fontSize:16,color:"#4b5563",lineHeight:23,marginTop:10},
+  dialogButtons:{flexDirection:"row",gap:10,marginTop:22},
+  dialogButton:{flex:1,paddingVertical:14,paddingHorizontal:12,borderRadius:11},
+  confirmButton:{backgroundColor:"#275bd6"},
+  destructiveButton:{backgroundColor:"#b42318"},
+  cancelButton:{backgroundColor:"#f2f3f5",borderWidth:1,borderColor:"#d4d7dc"},
+  dialogButtonText:{color:"white",fontWeight:"bold",fontSize:15,textAlign:"center"},
+  cancelButtonText:{color:"#222"}
 });
