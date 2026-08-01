@@ -23,13 +23,13 @@ export function NotificationProvider({children}){
 
     if(error){
       console.log("Notification count error",error);
-      return unreadCount;
+      return null;
     }
 
     const nextCount=count || 0;
     setUnreadCount(nextCount);
     return nextCount;
-  },[userId,unreadCount]);
+  },[userId]);
 
   useEffect(()=>{
     let mounted=true;
