@@ -4,6 +4,10 @@ import Header from "../components/Header";
 import {FeedbackProvider} from "../context/FeedbackContext";
 import {NotificationProvider} from "../context/NotificationContext";
 
+export const unstable_settings={
+  initialRouteName:"index"
+};
+
 export default function Layout(){
   return(
     <FeedbackProvider>
