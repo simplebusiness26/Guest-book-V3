@@ -12,9 +12,11 @@ import {
 import {useLocalSearchParams,router} from "expo-router";
 import {supabase} from "../../../services/supabase";
 import LocationPicker from "../../../components/LocationPicker";
+import {useFeedback} from "../../../context/FeedbackContext";
 
 export default function EditBusiness(){
   const {id}=useLocalSearchParams();
+  const {showFeedback}=useFeedback();
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [business,setBusiness]=useState(null);
@@ -35,7 +37,7 @@ export default function EditBusiness(){
     const {data:{user}}=await supabase.auth.getUser();
 
     if(!user){
-      Alert.alert("Login required","Please login first");
+      showFeedback("Please log in before editing a business.","error","Login required");
       router.back();
       return;
     }
@@ -48,7 +50,7 @@ export default function EditBusiness(){
       .single();
 
     if(error || !data){
-      Alert.alert("Access denied","You do not own this business");
+      showFeedback("You do not own this business listing.","error","Access denied");
       router.back();
       return;
     }
@@ -102,11 +104,11 @@ export default function EditBusiness(){
     setSaving(false);
 
     if(error){
-      Alert.alert("Save error",error.message);
+      showFeedback(error.message,"error","Business not updated");
       return;
     }
 
-    Alert.alert("Saved","Business updated successfully");
+    showFeedback(`${name.trim()} was updated successfully.`,"success","Business updated");
     router.replace("/manager/dashboard");
   }
 
@@ -119,9 +121,10 @@ export default function EditBusiness(){
         onPress:async()=>{
           const {error}=await supabase.from("businesses").delete().eq("id",business.id);
           if(error){
-            Alert.alert("Delete error",error.message);
+            showFeedback(error.message,"error","Business not deleted");
             return;
           }
+          showFeedback(`${business.name} was deleted.`,"success","Business deleted");
           router.replace("/manager/dashboard");
         }
       }
@@ -139,12 +142,7 @@ export default function EditBusiness(){
       <TextInput style={styles.input} value={category} onChangeText={setCategory} placeholder="Category"/>
       <TextInput style={[styles.input,styles.multiline]} value={description} onChangeText={setDescription} placeholder="Description" multiline/>
 
-      <LocationPicker
-        initialAddress={address}
-        initialLatitude={latitude}
-        initialLongitude={longitude}
-        onChange={chooseLocation}
-      />
+      <LocationPicker initialAddress={address} initialLatitude={latitude} initialLongitude={longitude} onChange={chooseLocation}/>
 
       <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Phone"/>
       <TextInput style={styles.input} value={website} onChangeText={setWebsite} placeholder="Website"/>
@@ -162,13 +160,5 @@ export default function EditBusiness(){
 }
 
 const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:"#f5f7fb"},
-  content:{padding:20,paddingBottom:50},
-  loading:{flex:1,justifyContent:"center",alignItems:"center"},
-  title:{fontSize:30,fontWeight:"bold",marginBottom:20},
-  input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",padding:15,borderRadius:10,marginBottom:15},
-  multiline:{minHeight:100,textAlignVertical:"top"},
-  button:{backgroundColor:"#222",padding:15,borderRadius:10,marginTop:10},
-  deleteButton:{backgroundColor:"#c62828",padding:15,borderRadius:10,marginTop:15},
-  buttonText:{color:"white",textAlign:"center",fontWeight:"bold"}
+  container:{flex:1,backgroundColor:"#f5f7fb"},content:{padding:20,paddingBottom:50},loading:{flex:1,justifyContent:"center",alignItems:"center"},title:{fontSize:30,fontWeight:"bold",marginBottom:20},input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",padding:15,borderRadius:10,marginBottom:15},multiline:{minHeight:100,textAlignVertical:"top"},button:{backgroundColor:"#222",padding:15,borderRadius:10,marginTop:10},deleteButton:{backgroundColor:"#c62828",padding:15,borderRadius:10,marginTop:15},buttonText:{color:"white",textAlign:"center",fontWeight:"bold"}
 });
