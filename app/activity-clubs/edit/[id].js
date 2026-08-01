@@ -1,0 +1,188 @@
+import React,{useCallback,useState} from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Alert
+} from "react-native";
+import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
+import {supabase} from "../../../services/supabase";
+
+export default function EditActivityClub(){
+  const {id}=useLocalSearchParams();
+  const [name,setName]=useState("");
+  const [category,setCategory]=useState("");
+  const [description,setDescription]=useState("");
+  const [location,setLocation]=useState("");
+  const [address,setAddress]=useState("");
+  const [price,setPrice]=useState("0");
+  const [status,setStatus]=useState("open");
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+
+  useFocusEffect(
+    useCallback(()=>{
+      if(id) loadClub();
+    },[id])
+  );
+
+  async function loadClub(){
+    setLoading(true);
+    setError("");
+
+    const {data:{user}}=await supabase.auth.getUser();
+    if(!user){
+      router.replace("/auth/login");
+      return;
+    }
+
+    const {data,error:clubError}=await supabase
+      .from("activity_clubs")
+      .select("*")
+      .eq("id",id)
+      .eq("manager_id",user.id)
+      .single();
+
+    if(clubError){
+      console.log(clubError);
+      setError("This Activity Club could not be loaded or is not owned by your account.");
+      setLoading(false);
+      return;
+    }
+
+    setName(data.name || "");
+    setCategory(data.category || "");
+    setDescription(data.description || "");
+    setLocation(data.location || "");
+    setAddress(data.address || "");
+    setPrice(String(data.price ?? 0));
+    setStatus(data.status || "open");
+    setLoading(false);
+  }
+
+  async function saveClub(){
+    if(saving) return;
+
+    if(!name.trim() || !category.trim() || !location.trim()){
+      Alert.alert("Missing information","Name, category and location are required.");
+      return;
+    }
+
+    const numericPrice=Number(price || 0);
+    if(Number.isNaN(numericPrice) || numericPrice<0){
+      Alert.alert("Invalid price","Enter a valid price or 0 for a free club.");
+      return;
+    }
+
+    setSaving(true);
+
+    const {data:{user}}=await supabase.auth.getUser();
+    const {error:updateError}=await supabase
+      .from("activity_clubs")
+      .update({
+        name:name.trim(),
+        category:category.trim(),
+        description:description.trim(),
+        location:location.trim(),
+        address:address.trim(),
+        price:numericPrice,
+        status
+      })
+      .eq("id",id)
+      .eq("manager_id",user.id);
+
+    setSaving(false);
+
+    if(updateError){
+      console.log(updateError);
+      Alert.alert("Club not updated",updateError.message);
+      return;
+    }
+
+    Alert.alert("Saved","The Activity Club listing has been updated.");
+    router.replace("/manager/dashboard");
+  }
+
+  if(loading){
+    return(
+      <View style={styles.center}>
+        <ActivityIndicator size="large"/>
+      </View>
+    );
+  }
+
+  if(error){
+    return(
+      <View style={styles.center}>
+        <Text style={styles.error}>{error}</Text>
+      </View>
+    );
+  }
+
+  return(
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Edit Activity Club</Text>
+      <Text style={styles.subtitle}>Update the public listing shown to explorers.</Text>
+
+      <TextInput style={styles.input} placeholder="Club name *" value={name} onChangeText={setName}/>
+      <TextInput style={styles.input} placeholder="Category *" value={category} onChangeText={setCategory}/>
+      <TextInput
+        style={[styles.input,styles.multiline]}
+        placeholder="Description"
+        value={description}
+        onChangeText={setDescription}
+        multiline
+      />
+      <TextInput style={styles.input} placeholder="Town or area *" value={location} onChangeText={setLocation}/>
+      <TextInput style={styles.input} placeholder="Full address" value={address} onChangeText={setAddress}/>
+      <TextInput
+        style={styles.input}
+        placeholder="Price per session"
+        value={price}
+        onChangeText={setPrice}
+        keyboardType="decimal-pad"
+      />
+
+      <Text style={styles.label}>Listing status</Text>
+      <View style={styles.statusRow}>
+        {["open","full","closed","draft"].map(option=>(
+          <Pressable
+            key={option}
+            style={[styles.statusButton,status===option && styles.selectedStatus]}
+            onPress={()=>setStatus(option)}
+          >
+            <Text style={[styles.statusText,status===option && styles.selectedStatusText]}>{option}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Pressable style={styles.button} onPress={saveClub} disabled={saving}>
+        {saving ? <ActivityIndicator color="white"/> : <Text style={styles.buttonText}>Save Changes</Text>}
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const styles=StyleSheet.create({
+  container:{flex:1,backgroundColor:"#f5f7fb"},
+  content:{padding:20,paddingBottom:50},
+  center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},
+  error:{fontSize:17,textAlign:"center"},
+  title:{fontSize:30,fontWeight:"bold"},
+  subtitle:{color:"#666",lineHeight:22,marginTop:7,marginBottom:20},
+  input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",borderRadius:11,padding:14,marginBottom:14},
+  multiline:{minHeight:110,textAlignVertical:"top"},
+  label:{fontWeight:"bold",fontSize:16,marginBottom:10},
+  statusRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20},
+  statusButton:{paddingHorizontal:14,paddingVertical:10,borderRadius:20,borderWidth:1,borderColor:"#aaa",backgroundColor:"white"},
+  selectedStatus:{backgroundColor:"#5633a8",borderColor:"#5633a8"},
+  statusText:{textTransform:"capitalize",fontWeight:"600"},
+  selectedStatusText:{color:"white"},
+  button:{backgroundColor:"#5633a8",padding:16,borderRadius:12,alignItems:"center"},
+  buttonText:{color:"white",fontWeight:"bold"}
+});
