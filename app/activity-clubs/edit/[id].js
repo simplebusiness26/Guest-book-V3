@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {supabase} from "../../../services/supabase";
+import LocationPicker from "../../../components/LocationPicker";
 
 export default function EditActivityClub(){
   const {id}=useLocalSearchParams();
@@ -19,7 +20,10 @@ export default function EditActivityClub(){
   const [description,setDescription]=useState("");
   const [location,setLocation]=useState("");
   const [address,setAddress]=useState("");
+  const [latitude,setLatitude]=useState(null);
+  const [longitude,setLongitude]=useState(null);
   const [price,setPrice]=useState("0");
+  const [memberLimit,setMemberLimit]=useState("20");
   const [status,setStatus]=useState("open");
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -60,22 +64,44 @@ export default function EditActivityClub(){
     setDescription(data.description || "");
     setLocation(data.location || "");
     setAddress(data.address || "");
+    setLatitude(data.latitude ?? null);
+    setLongitude(data.longitude ?? null);
     setPrice(String(data.price ?? 0));
+    setMemberLimit(String(data.member_limit ?? 20));
     setStatus(data.status || "open");
     setLoading(false);
+  }
+
+  function chooseLocation(value){
+    setLocation(value.location || "");
+    setAddress(value.address);
+    setLatitude(value.latitude);
+    setLongitude(value.longitude);
   }
 
   async function saveClub(){
     if(saving) return;
 
-    if(!name.trim() || !category.trim() || !location.trim()){
-      Alert.alert("Missing information","Name, category and location are required.");
+    if(!name.trim() || !category.trim()){
+      Alert.alert("Missing information","Name and category are required.");
+      return;
+    }
+
+    if(!address || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))){
+      Alert.alert("Choose a location","Search for the club address and select the correct result.");
       return;
     }
 
     const numericPrice=Number(price || 0);
+    const numericLimit=Number(memberLimit);
+
     if(Number.isNaN(numericPrice) || numericPrice<0){
       Alert.alert("Invalid price","Enter a valid price or 0 for a free club.");
+      return;
+    }
+
+    if(!Number.isInteger(numericLimit) || numericLimit<1){
+      Alert.alert("Invalid member limit","Enter the maximum number of approved members.");
       return;
     }
 
@@ -88,9 +114,12 @@ export default function EditActivityClub(){
         name:name.trim(),
         category:category.trim(),
         description:description.trim(),
-        location:location.trim(),
-        address:address.trim(),
+        location,
+        address,
+        latitude:Number(latitude),
+        longitude:Number(longitude),
         price:numericPrice,
+        member_limit:numericLimit,
         status
       })
       .eq("id",id)
@@ -127,7 +156,7 @@ export default function EditActivityClub(){
   return(
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Edit Activity Club</Text>
-      <Text style={styles.subtitle}>Update the public listing shown to explorers.</Text>
+      <Text style={styles.subtitle}>Update the public listing, location and membership capacity.</Text>
 
       <TextInput style={styles.input} placeholder="Club name *" value={name} onChangeText={setName}/>
       <TextInput style={styles.input} placeholder="Category *" value={category} onChangeText={setCategory}/>
@@ -138,14 +167,28 @@ export default function EditActivityClub(){
         onChangeText={setDescription}
         multiline
       />
-      <TextInput style={styles.input} placeholder="Town or area *" value={location} onChangeText={setLocation}/>
-      <TextInput style={styles.input} placeholder="Full address" value={address} onChangeText={setAddress}/>
+
+      <LocationPicker
+        initialAddress={address}
+        initialLocation={location}
+        initialLatitude={latitude}
+        initialLongitude={longitude}
+        onChange={chooseLocation}
+      />
+
       <TextInput
         style={styles.input}
         placeholder="Price per session"
         value={price}
         onChangeText={setPrice}
         keyboardType="decimal-pad"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Maximum approved members"
+        value={memberLimit}
+        onChangeText={setMemberLimit}
+        keyboardType="number-pad"
       />
 
       <Text style={styles.label}>Listing status</Text>
