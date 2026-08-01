@@ -11,8 +11,10 @@ import {
 import {supabase} from "../../services/supabase";
 import {router} from "expo-router";
 import LocationPicker from "../../components/LocationPicker";
+import {useFeedback} from "../../context/FeedbackContext";
 
 export default function AddBusiness(){
+  const {showFeedback}=useFeedback();
   const [name,setName]=useState("");
   const [category,setCategory]=useState("");
   const [description,setDescription]=useState("");
@@ -41,7 +43,7 @@ export default function AddBusiness(){
 
     if(userError || !user){
       setLoading(false);
-      Alert.alert("Login required","You must be logged in.");
+      showFeedback("You must be logged in to create a business.","error","Business not created");
       return;
     }
 
@@ -65,10 +67,11 @@ export default function AddBusiness(){
 
     if(error){
       console.log(error);
-      Alert.alert("Database Error",error.message);
+      showFeedback(error.message,"error","Business not created");
       return;
     }
 
+    showFeedback(`${name.trim()} was created and added to your dashboard.`,"success","Business created");
     router.replace("/manager/dashboard");
   }
 
