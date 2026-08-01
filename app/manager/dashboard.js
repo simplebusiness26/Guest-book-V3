@@ -1,4 +1,4 @@
-import React,{useCallback,useEffect,useMemo,useRef,useState} from "react";
+import React,{useCallback,useMemo,useState} from "react";
 import {
   View,
   Text,
@@ -9,16 +9,12 @@ import {
   Alert,
   Image
 } from "react-native";
-import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
+import {router,useFocusEffect} from "expo-router";
 import {supabase} from "../../services/supabase";
 import QRCodeGenerator from "../../components/QRCodeGenerator";
 import {useFeedback} from "../../context/FeedbackContext";
 
 const ENABLED_STATUSES=["active","trial"];
-
-function firstParam(value){
-  return Array.isArray(value) ? value[0] : value || null;
-}
 
 function CapabilityHeader({title,status,requestStatus,onRequest}){
   const enabled=ENABLED_STATUSES.includes(status);
@@ -71,25 +67,14 @@ function MemberIdentity({membership,profiles}){
 
       <View style={styles.memberNameWrap}>
         <Text style={styles.applicantName}>{name}</Text>
-        <Text style={styles.memberAccessText}>
-          {membership.status==="approved"
-            ? "Message board access enabled"
-            : "Waiting for approval"
-          }
-        </Text>
+        <Text style={styles.memberAccessText}>Message board access enabled</Text>
       </View>
     </View>
   );
 }
 
 export default function ManagerDashboard(){
-  const params=useLocalSearchParams();
-  const targetClubId=firstParam(params.club);
-  const targetMembershipId=firstParam(params.membership);
-  const targetView=firstParam(params.view);
-
   const {showFeedback}=useFeedback();
-  const scrollRef=useRef(null);
 
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
@@ -107,38 +92,10 @@ export default function ManagerDashboard(){
   const [memberships,setMemberships]=useState([]);
   const [memberProfiles,setMemberProfiles]=useState({});
   const [workingId,setWorkingId]=useState(null);
-  const [activitySectionY,setActivitySectionY]=useState(null);
-  const [clubOffsets,setClubOffsets]=useState({});
-  const [focusApplied,setFocusApplied]=useState(false);
 
   useFocusEffect(useCallback(()=>{
-    setFocusApplied(false);
     loadDashboard();
-  },[targetClubId,targetMembershipId,targetView]));
-
-  useEffect(()=>{
-    if(
-      loading ||
-      !targetClubId ||
-      focusApplied ||
-      activitySectionY===null ||
-      clubOffsets[targetClubId]===undefined
-    ) return;
-
-    const y=Math.max(0,activitySectionY+clubOffsets[targetClubId]-12);
-    const timeout=setTimeout(()=>{
-      scrollRef.current?.scrollTo({y,animated:true});
-      setFocusApplied(true);
-    },180);
-
-    return()=>clearTimeout(timeout);
-  },[
-    loading,
-    targetClubId,
-    focusApplied,
-    activitySectionY,
-    clubOffsets
-  ]);
+  },[]));
 
   async function loadDashboard(){
     setLoading(true);
@@ -217,13 +174,15 @@ export default function ManagerDashboard(){
       const rows=membershipRows || [];
       setMemberships(rows);
 
-      const userIds=[...new Set(rows.map(item=>item.user_id))];
+      const approvedUserIds=[...new Set(
+        rows.filter(item=>item.status==="approved").map(item=>item.user_id)
+      )];
 
-      if(userIds.length){
+      if(approvedUserIds.length){
         const {data:profileRows}=await supabase
           .from("profiles")
           .select("id,full_name,profile_photo")
-          .in("id",userIds);
+          .in("id",approvedUserIds);
 
         const profileMap={};
         (profileRows || []).forEach(item=>{
@@ -251,6 +210,11 @@ export default function ManagerDashboard(){
     [memberships]
   );
 
+  const totalPending=useMemo(
+    ()=>memberships.filter(item=>item.status==="pending").length,
+    [memberships]
+  );
+
   function groupMemberships(rows,status){
     const grouped={};
 
@@ -266,10 +230,9 @@ export default function ManagerDashboard(){
     return ENABLED_STATUSES.includes(capabilities?.[`${capability}_status`]);
   }
 
-  function membershipName(membershipId){
-    const membership=memberships.find(item=>item.id===membershipId);
-    const profile=membership ? memberProfiles[membership.user_id] : null;
-    return profile?.full_name || membership?.applicant_name || "Explorer";
+  function membershipName(membership){
+    const profile=memberProfiles[membership.user_id];
+    return profile?.full_name || membership.applicant_name || "Explorer";
   }
 
   async function requestCapability(capability,label){
@@ -301,51 +264,37 @@ export default function ManagerDashboard(){
     await loadDashboard();
   }
 
-  async function decideMembership(membershipId,status,club){
-    const approvedCount=(approvedByClub[club.id] || []).length;
-
-    if(status==="approved" && approvedCount>=club.member_limit){
-      showFeedback(
-        `${club.name} already has ${club.member_limit} approved members.`,
-        "error",
-        "Member limit reached"
-      );
-      return;
-    }
-
-    const name=membershipName(membershipId);
-    setWorkingId(membershipId);
+  async function removeMember(membership,club){
+    const name=membershipName(membership);
+    setWorkingId(membership.id);
 
     const {error:updateError}=await supabase
       .from("activity_memberships")
-      .update({status,decided_at:new Date().toISOString()})
-      .eq("id",membershipId);
+      .update({
+        status:"removed",
+        decided_at:new Date().toISOString()
+      })
+      .eq("id",membership.id)
+      .eq("status","approved");
 
     setWorkingId(null);
 
     if(updateError){
-      showFeedback(updateError.message,"error","Member not updated");
+      showFeedback(updateError.message,"error","Member not removed");
       return;
     }
 
-    const messages={
-      approved:`${name} was approved and now has message-board access.`,
-      rejected:`${name}'s membership request was rejected.`,
-      removed:`${name} was removed and their private-board access was revoked.`
-    };
-
     showFeedback(
-      messages[status] || `${name}'s membership was updated.`,
+      `${name} was removed and their private-board access was revoked.`,
       "success",
-      "Membership updated"
+      "Member removed"
     );
 
     await loadDashboard();
   }
 
   function confirmRemoveMember(membership,club){
-    const profile=memberProfiles[membership.user_id];
-    const name=profile?.full_name || membership.applicant_name || "this member";
+    const name=membershipName(membership);
 
     Alert.alert(
       "Remove member?",
@@ -355,17 +304,10 @@ export default function ManagerDashboard(){
         {
           text:"Remove",
           style:"destructive",
-          onPress:()=>decideMembership(membership.id,"removed",club)
+          onPress:()=>removeMember(membership,club)
         }
       ]
     );
-  }
-
-  function saveClubOffset(clubId,y){
-    setClubOffsets(current=>{
-      if(current[clubId]===y) return current;
-      return {...current,[clubId]:y};
-    });
   }
 
   if(loading){
@@ -391,15 +333,42 @@ export default function ManagerDashboard(){
   const eventsEnabled=capabilityEnabled("events");
 
   return(
-    <ScrollView
-      ref={scrollRef}
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Manager Dashboard</Text>
       <Text style={styles.subtitle}>
-        Manage listings, member requests, approved members and printable QR codes from one place.
+        Manage listings, approved members and printable QR codes from one place.
       </Text>
+
+      <View style={[styles.actionCard,totalPending>0 && styles.actionCardActive]}>
+        <View style={styles.actionCardTop}>
+          <View style={styles.actionCardText}>
+            <Text style={styles.actionEyebrow}>MANAGER ACTION CENTRE</Text>
+            <Text style={styles.actionTitle}>
+              {totalPending>0
+                ? `${totalPending} membership request${totalPending===1 ? "" : "s"} need a decision`
+                : "No pending membership requests"
+              }
+            </Text>
+            <Text style={styles.actionText}>
+              Approvals and other decisions are kept separate from listing management.
+            </Text>
+          </View>
+
+          <View style={[styles.actionCount,totalPending===0 && styles.actionCountClear]}>
+            <Text style={styles.actionCountNumber}>{totalPending}</Text>
+            <Text style={styles.actionCountLabel}>pending</Text>
+          </View>
+        </View>
+
+        <Pressable
+          style={styles.actionButton}
+          onPress={()=>router.push("/manager/requests")}
+        >
+          <Text style={styles.actionButtonText}>
+            {totalPending>0 ? "Review pending actions" : "Open Action Centre"}
+          </Text>
+        </Pressable>
+      </View>
 
       <View style={styles.section}>
         <CapabilityHeader
@@ -497,10 +466,7 @@ export default function ManagerDashboard(){
         )}
       </View>
 
-      <View
-        style={styles.section}
-        onLayout={event=>setActivitySectionY(event.nativeEvent.layout.y)}
-      >
+      <View style={styles.section}>
         <CapabilityHeader
           title={`🏃 Activity Clubs (${clubs.length})`}
           status={capabilities.activity_clubs_status}
@@ -518,35 +484,9 @@ export default function ManagerDashboard(){
             const approved=approvedByClub[club.id] || [];
             const limit=club.member_limit || 20;
             const full=approved.length>=limit;
-            const isTargetClub=targetClubId===club.id;
-            const showRequestFocus=isTargetClub && targetView==="requests";
 
             return(
-              <View
-                key={club.id}
-                onLayout={event=>saveClubOffset(club.id,event.nativeEvent.layout.y)}
-                style={[
-                  styles.card,
-                  showRequestFocus && styles.focusedClubCard
-                ]}
-              >
-                {showRequestFocus && (
-                  <View style={styles.focusBanner}>
-                    <Text style={styles.focusBannerTitle}>
-                      {targetMembershipId
-                        ? "Membership request opened from notification"
-                        : "Pending membership requests"
-                      }
-                    </Text>
-                    <Text style={styles.focusBannerText}>
-                      {targetMembershipId
-                        ? "The relevant applicant is highlighted below."
-                        : `Review all ${pending.length} pending request${pending.length===1 ? "" : "s"} for this club.`
-                      }
-                    </Text>
-                  </View>
-                )}
-
+              <View key={club.id} style={styles.card}>
                 <Text style={styles.cardTitle}>{club.name}</Text>
                 <Text style={styles.cardSub}>{club.category} · {club.location}</Text>
 
@@ -555,7 +495,28 @@ export default function ManagerDashboard(){
                   {full && <Text style={styles.fullPill}>FULL</Text>}
                 </View>
 
-                <Text style={styles.pendingCount}>Pending requests: {pending.length}</Text>
+                <View style={[styles.requestSummary,pending.length>0 && styles.requestSummaryActive]}>
+                  <View style={styles.requestSummaryText}>
+                    <Text style={styles.requestSummaryTitle}>
+                      {pending.length>0
+                        ? `${pending.length} pending request${pending.length===1 ? "" : "s"}`
+                        : "No pending requests"
+                      }
+                    </Text>
+                    <Text style={styles.requestSummarySub}>
+                      Review membership decisions in the Action Centre.
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={styles.reviewButton}
+                    onPress={()=>router.push(`/manager/requests?club=${club.id}&view=requests`)}
+                  >
+                    <Text style={styles.reviewButtonText}>
+                      {pending.length>0 ? "Review" : "View"}
+                    </Text>
+                  </Pressable>
+                </View>
 
                 <QRBlock type="activity" id={club.id}>
                   <QRCodeGenerator activityClubId={club.id} size={120}/>
@@ -584,59 +545,6 @@ export default function ManagerDashboard(){
                   <Text style={styles.buttonText}>Open private message board</Text>
                 </Pressable>
 
-                <Text style={styles.applicationTitle}>Membership requests</Text>
-
-                {pending.length===0 ? (
-                  <View style={styles.noApplications}>
-                    <Text>No explorers are waiting for approval.</Text>
-                  </View>
-                ) : pending.map(application=>{
-                  const isTargetRequest=targetMembershipId===application.id;
-
-                  return(
-                    <View
-                      key={application.id}
-                      style={[
-                        styles.applicationCard,
-                        isTargetRequest && styles.focusedApplicationCard
-                      ]}
-                    >
-                      {isTargetRequest && (
-                        <Text style={styles.requestHighlightLabel}>OPENED FROM NOTIFICATION</Text>
-                      )}
-
-                      <MemberIdentity
-                        membership={application}
-                        profiles={memberProfiles}
-                      />
-
-                      {!!application.application_note && (
-                        <Text style={styles.applicationNote}>
-                          {application.application_note}
-                        </Text>
-                      )}
-
-                      <View style={styles.buttonRow}>
-                        <Pressable
-                          style={[styles.approveButton,full && styles.disabledButton]}
-                          disabled={workingId===application.id || full}
-                          onPress={()=>decideMembership(application.id,"approved",club)}
-                        >
-                          <Text style={styles.buttonText}>{full ? "Club full" : "Approve"}</Text>
-                        </Pressable>
-
-                        <Pressable
-                          style={styles.rejectButton}
-                          disabled={workingId===application.id}
-                          onPress={()=>decideMembership(application.id,"rejected",club)}
-                        >
-                          <Text style={styles.buttonText}>Reject</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  );
-                })}
-
                 <Text style={styles.applicationTitle}>Approved members</Text>
 
                 {approved.length===0 ? (
@@ -651,7 +559,9 @@ export default function ManagerDashboard(){
                       disabled={workingId===member.id}
                       onPress={()=>confirmRemoveMember(member,club)}
                     >
-                      <Text style={styles.removeButtonText}>Remove member</Text>
+                      <Text style={styles.removeButtonText}>
+                        {workingId===member.id ? "Removing..." : "Remove member"}
+                      </Text>
                     </Pressable>
                   </View>
                 ))}
@@ -712,7 +622,20 @@ const styles=StyleSheet.create({
   loadingText:{marginTop:16,color:"#555"},
   errorText:{fontSize:18,textAlign:"center"},
   title:{fontSize:32,fontWeight:"bold",marginTop:10},
-  subtitle:{fontSize:16,color:"#666",lineHeight:23,marginBottom:26,marginTop:6},
+  subtitle:{fontSize:16,color:"#666",lineHeight:23,marginBottom:20,marginTop:6},
+  actionCard:{backgroundColor:"white",borderWidth:1,borderColor:"#dfe3e8",borderRadius:16,padding:17,marginBottom:30},
+  actionCardActive:{backgroundColor:"#fff8e8",borderColor:"#e3b458"},
+  actionCardTop:{flexDirection:"row",alignItems:"flex-start",gap:14},
+  actionCardText:{flex:1},
+  actionEyebrow:{fontSize:11,fontWeight:"bold",color:"#7a5613",letterSpacing:0.5},
+  actionTitle:{fontSize:19,fontWeight:"bold",marginTop:5},
+  actionText:{fontSize:14,color:"#666",lineHeight:20,marginTop:5},
+  actionCount:{minWidth:68,backgroundColor:"#f4c76f",borderRadius:13,paddingVertical:9,paddingHorizontal:11,alignItems:"center"},
+  actionCountClear:{backgroundColor:"#dcefe2"},
+  actionCountNumber:{fontSize:23,fontWeight:"bold"},
+  actionCountLabel:{fontSize:10,fontWeight:"bold",textTransform:"uppercase"},
+  actionButton:{backgroundColor:"#275bd6",padding:13,borderRadius:10,marginTop:14},
+  actionButtonText:{color:"white",fontWeight:"bold",textAlign:"center"},
   section:{marginBottom:34},
   capabilityHeader:{marginBottom:14},
   capabilityHeadingText:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},
@@ -723,16 +646,18 @@ const styles=StyleSheet.create({
   requestButton:{backgroundColor:"#275bd6",padding:13,borderRadius:10,marginTop:12,alignSelf:"flex-start"},
   requestButtonText:{color:"white",fontWeight:"bold"},
   card:{backgroundColor:"white",padding:18,borderRadius:14,marginBottom:15,borderWidth:1,borderColor:"#e5e5e5"},
-  focusedClubCard:{borderWidth:2,borderColor:"#275bd6",backgroundColor:"#f8faff"},
-  focusBanner:{backgroundColor:"#e8efff",borderRadius:11,padding:13,marginBottom:16,borderWidth:1,borderColor:"#9db7f4"},
-  focusBannerTitle:{fontWeight:"bold",color:"#183b8f"},
-  focusBannerText:{color:"#40547b",marginTop:4,lineHeight:19},
   cardTitle:{fontSize:21,fontWeight:"bold"},
   cardSub:{fontSize:15,color:"#666",marginTop:5},
   capacityRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:10},
   memberCount:{fontWeight:"700",color:"#5633a8"},
-  pendingCount:{color:"#555",marginTop:5},
   fullPill:{backgroundColor:"#ffe0e0",color:"#9d1c1c",fontSize:12,fontWeight:"bold",paddingHorizontal:9,paddingVertical:5,borderRadius:20,overflow:"hidden"},
+  requestSummary:{flexDirection:"row",alignItems:"center",gap:12,backgroundColor:"#f5f6f8",borderRadius:11,padding:13,marginTop:14,borderWidth:1,borderColor:"#e1e4e8"},
+  requestSummaryActive:{backgroundColor:"#fff4d7",borderColor:"#e3b458"},
+  requestSummaryText:{flex:1},
+  requestSummaryTitle:{fontWeight:"bold",fontSize:16},
+  requestSummarySub:{fontSize:12,color:"#666",marginTop:3},
+  reviewButton:{backgroundColor:"#275bd6",paddingHorizontal:14,paddingVertical:10,borderRadius:9},
+  reviewButtonText:{color:"white",fontWeight:"bold"},
   qrSection:{flexDirection:"row",alignItems:"center",gap:16,marginTop:16,paddingTop:16,borderTopWidth:1,borderColor:"#eee"},
   qrPreview:{padding:8,backgroundColor:"white"},
   printQrButton:{flex:1,backgroundColor:"#eef1ff",padding:14,borderRadius:10},
@@ -750,9 +675,6 @@ const styles=StyleSheet.create({
   lockedCard:{backgroundColor:"#fff8e7",padding:18,borderRadius:14,borderWidth:1,borderColor:"#f0d78c"},
   applicationTitle:{fontSize:18,fontWeight:"bold",marginTop:22,marginBottom:10},
   noApplications:{backgroundColor:"#f5f6f8",padding:14,borderRadius:10},
-  applicationCard:{backgroundColor:"#f7f8fc",padding:14,borderRadius:11,marginBottom:10,borderWidth:1,borderColor:"transparent"},
-  focusedApplicationCard:{backgroundColor:"#fff8db",borderColor:"#d19b00",borderWidth:2},
-  requestHighlightLabel:{fontSize:11,fontWeight:"bold",color:"#8a5c00",marginBottom:10},
   approvedMemberCard:{backgroundColor:"#edf8f0",padding:14,borderRadius:11,marginBottom:10,borderWidth:1,borderColor:"#c7e5cf"},
   memberIdentity:{flexDirection:"row",alignItems:"center"},
   memberAvatar:{width:44,height:44,borderRadius:22,backgroundColor:"#ddd"},
@@ -761,10 +683,6 @@ const styles=StyleSheet.create({
   memberNameWrap:{marginLeft:11,flex:1},
   applicantName:{fontSize:17,fontWeight:"bold"},
   memberAccessText:{fontSize:12,color:"#666",marginTop:3},
-  applicationNote:{color:"#555",lineHeight:20,marginTop:9},
-  approveButton:{flex:1,backgroundColor:"#218739",padding:13,borderRadius:10},
-  rejectButton:{flex:1,backgroundColor:"#c23b3b",padding:13,borderRadius:10},
-  disabledButton:{opacity:0.55},
   removeButton:{borderWidth:1,borderColor:"#b42318",padding:11,borderRadius:9,marginTop:12},
   removeButtonText:{color:"#b42318",fontWeight:"bold",textAlign:"center"}
 });
