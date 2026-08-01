@@ -102,6 +102,9 @@ export default function LocationPicker({
         onChangeText={text=>{
           setQuery(text);
           setSelected(null);
+          setResults([]);
+          setError("");
+          onChange?.(null);
         }}
         autoCapitalize="words"
       />
