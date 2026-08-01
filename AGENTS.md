@@ -28,6 +28,15 @@ GitHub is the source of truth. Replit is used to run and preview approved branch
 - Developer agents must not merge their own pull requests.
 - Testing agents report `PASS`, `PASS WITH WARNINGS`, or `FAIL` with evidence.
 
+## User feedback rules
+
+- Every successful create, update, approval, rejection, removal or deletion must show a clear confirmation banner.
+- Every failed data-changing action must show a clear error banner.
+- Confirmation feedback must remain visible after navigation when an action redirects to another screen.
+- Destructive actions must show an explicit confirmation dialog before the change and a result banner afterward.
+- Use the shared `FeedbackContext` instead of creating inconsistent one-off success messages.
+- Validation messages may still use local alerts when no data change has occurred.
+
 ## Required review areas
 
 - Build and dependency checks
@@ -35,4 +44,5 @@ GitHub is the source of truth. Replit is used to run and preview approved branch
 - Listing ownership checks
 - Supabase query safety
 - Navigation and loading/error states
+- Visible success/error feedback for all data changes
 - Mobile and web preview behaviour
