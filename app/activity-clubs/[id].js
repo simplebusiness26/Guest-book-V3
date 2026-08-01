@@ -183,9 +183,9 @@ export default function ActivityClubProfile(){
       {isManager && (
         <Pressable
           style={styles.managerButton}
-          onPress={()=>router.push(`/activity-clubs/manage/${club.id}`)}
+          onPress={()=>router.push("/manager/dashboard")}
         >
-          <Text style={styles.buttonText}>Manage this Activity Club</Text>
+          <Text style={styles.buttonText}>Open Manager Dashboard</Text>
         </Pressable>
       )}
 
