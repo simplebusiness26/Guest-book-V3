@@ -33,29 +33,34 @@ export default function Login(){
   const [loading,setLoading]=useState(false);
   const [quickAccount,setQuickAccount]=useState("");
 
-  async function prepareTestAccounts(){
+  async function prepareTestAccount(alias){
     const {data,error:setupError}=await supabase.functions.invoke(
       "guestbook-test-account-setup",
-      {body:{token:TEST_SETUP_TOKEN}}
+      {
+        body:{
+          token:TEST_SETUP_TOKEN,
+          alias
+        }
+      }
     );
 
     if(setupError){
       throw new Error(setupError.message || "Test account setup failed");
     }
 
-    if(data?.ok===false){
-      throw new Error("Test account setup failed");
+    if(!data?.ok){
+      throw new Error(data?.error || "Test account setup failed");
     }
   }
 
-  async function signIn(loginEmail,loginPassword,accountLabel="",prepareTest=false){
+  async function signIn(loginEmail,loginPassword,accountLabel="",testAlias=""){
     setError("");
     setLoading(true);
     setQuickAccount(accountLabel);
 
     try{
-      if(prepareTest){
-        await prepareTestAccounts();
+      if(testAlias){
+        await prepareTestAccount(testAlias);
       }
 
       const {error:loginError}=await supabase.auth.signInWithPassword({
@@ -70,7 +75,7 @@ export default function Login(){
       console.log(loginError);
 
       if(accountLabel){
-        setError(`${accountLabel} quick login failed. Please try once more.`);
+        setError(`${accountLabel} quick login failed. Please tap the button again.`);
       }else if(loginError.message?.includes("Invalid login")){
         setError("Incorrect email or password");
       }else{
@@ -91,7 +96,7 @@ export default function Login(){
         testAccount.email,
         TEST_PASSWORD,
         testAccount.label,
-        true
+        alias
       );
       return;
     }
@@ -115,7 +120,7 @@ export default function Login(){
       account.email,
       TEST_PASSWORD,
       account.label,
-      true
+      alias
     );
   }
 
