@@ -31,6 +31,7 @@ export default function Layout(){
           <Stack.Screen name="auth/verify"/>
 
           <Stack.Screen name="manager/dashboard"/>
+          <Stack.Screen name="manager/requests"/>
           <Stack.Screen name="manager/qr/[type]/[id]"/>
 
           <Stack.Screen name="business/dashboard"/>
