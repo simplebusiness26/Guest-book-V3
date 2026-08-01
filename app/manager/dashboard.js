@@ -486,7 +486,8 @@ export default function ManagerDashboard(){
             const full=approved.length>=limit;
 
             return(
-              <View key={club.id} style={styles.card}>
+              <View key={club.id} style={styles.clubCard}>
+                <Text style={styles.clubEyebrow}>ACTIVITY CLUB LISTING</Text>
                 <Text style={styles.cardTitle}>{club.name}</Text>
                 <Text style={styles.cardSub}>{club.category} · {club.location}</Text>
 
@@ -545,11 +546,19 @@ export default function ManagerDashboard(){
                   <Text style={styles.buttonText}>Open private message board</Text>
                 </Pressable>
 
-                <Text style={styles.applicationTitle}>Approved members</Text>
+                <View style={styles.memberSectionHeader}>
+                  <Text style={styles.applicationTitle}>Approved members</Text>
+                  <Text style={styles.memberSectionClub}>{club.name}</Text>
+                  <Text style={styles.memberSectionCount}>
+                    {approved.length} approved member{approved.length===1 ? "" : "s"}
+                  </Text>
+                </View>
 
                 {approved.length===0 ? (
                   <View style={styles.noApplications}>
-                    <Text>No approved members yet.</Text>
+                    <Text style={styles.noApplicationsText}>
+                      No approved members in {club.name}.
+                    </Text>
                   </View>
                 ) : approved.map(member=>(
                   <View key={member.id} style={styles.approvedMemberCard}>
@@ -646,6 +655,8 @@ const styles=StyleSheet.create({
   requestButton:{backgroundColor:"#275bd6",padding:13,borderRadius:10,marginTop:12,alignSelf:"flex-start"},
   requestButtonText:{color:"white",fontWeight:"bold"},
   card:{backgroundColor:"white",padding:18,borderRadius:14,marginBottom:15,borderWidth:1,borderColor:"#e5e5e5"},
+  clubCard:{backgroundColor:"white",padding:18,borderRadius:18,marginBottom:28,borderWidth:2,borderColor:"#aab4c2"},
+  clubEyebrow:{fontSize:11,fontWeight:"bold",color:"#5633a8",letterSpacing:0.6,marginBottom:7},
   cardTitle:{fontSize:21,fontWeight:"bold"},
   cardSub:{fontSize:15,color:"#666",marginTop:5},
   capacityRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:10},
@@ -673,8 +684,12 @@ const styles=StyleSheet.create({
   emptyTitle:{fontSize:18,fontWeight:"bold"},
   emptyText:{fontSize:15,color:"#666",marginTop:8,lineHeight:21},
   lockedCard:{backgroundColor:"#fff8e7",padding:18,borderRadius:14,borderWidth:1,borderColor:"#f0d78c"},
-  applicationTitle:{fontSize:18,fontWeight:"bold",marginTop:22,marginBottom:10},
-  noApplications:{backgroundColor:"#f5f6f8",padding:14,borderRadius:10},
+  memberSectionHeader:{marginTop:22,marginBottom:10,paddingTop:18,borderTopWidth:2,borderColor:"#d8dce3"},
+  applicationTitle:{fontSize:18,fontWeight:"bold"},
+  memberSectionClub:{fontSize:15,fontWeight:"700",color:"#5633a8",marginTop:4},
+  memberSectionCount:{fontSize:12,color:"#666",marginTop:3},
+  noApplications:{backgroundColor:"#f5f6f8",padding:14,borderRadius:10,borderWidth:1,borderColor:"#e1e4e8"},
+  noApplicationsText:{color:"#4d5560",lineHeight:20},
   approvedMemberCard:{backgroundColor:"#edf8f0",padding:14,borderRadius:11,marginBottom:10,borderWidth:1,borderColor:"#c7e5cf"},
   memberIdentity:{flexDirection:"row",alignItems:"center"},
   memberAvatar:{width:44,height:44,borderRadius:22,backgroundColor:"#ddd"},
