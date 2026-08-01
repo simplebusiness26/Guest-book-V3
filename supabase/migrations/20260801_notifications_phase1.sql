@@ -119,6 +119,7 @@ declare
   event_stamp text;
   status_title text;
   status_message text;
+  should_notify_manager boolean := false;
 begin
   select name, manager_id
     into club_name, club_manager_id
@@ -128,27 +129,32 @@ begin
   applicant_display_name := coalesce(nullif(new.applicant_name, ''), 'An explorer');
 
   if new.status = 'pending' then
-    if tg_op = 'INSERT'
-       or (tg_op = 'UPDATE' and old.status is distinct from 'pending') then
-      event_stamp := coalesce(new.applied_at::text, clock_timestamp()::text);
-
-      perform public.create_notification(
-        club_manager_id,
-        new.user_id,
-        'activity_join_request',
-        'New membership request',
-        applicant_display_name || ' requested to join ' || club_name || '.',
-        'activity_club',
-        new.club_id,
-        '/manager/dashboard?club=' || new.club_id::text,
-        jsonb_build_object(
-          'membership_id', new.id,
-          'club_id', new.club_id,
-          'status', new.status
-        ),
-        'activity_join_request:' || new.id::text || ':' || event_stamp
-      );
+    if tg_op = 'INSERT' then
+      should_notify_manager := true;
+    elsif tg_op = 'UPDATE' then
+      should_notify_manager := old.status is distinct from 'pending';
     end if;
+  end if;
+
+  if should_notify_manager then
+    event_stamp := coalesce(new.applied_at::text, clock_timestamp()::text);
+
+    perform public.create_notification(
+      club_manager_id,
+      new.user_id,
+      'activity_join_request',
+      'New membership request',
+      applicant_display_name || ' requested to join ' || club_name || '.',
+      'activity_club',
+      new.club_id,
+      '/manager/dashboard?club=' || new.club_id::text,
+      jsonb_build_object(
+        'membership_id', new.id,
+        'club_id', new.club_id,
+        'status', new.status
+      ),
+      'activity_join_request:' || new.id::text || ':' || event_stamp
+    );
   end if;
 
   if tg_op = 'UPDATE' then
