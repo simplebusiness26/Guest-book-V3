@@ -11,8 +11,10 @@ import {
 import {supabase} from "../../services/supabase";
 import {router} from "expo-router";
 import LocationPicker from "../../components/LocationPicker";
+import {useFeedback} from "../../context/FeedbackContext";
 
 export default function AddProperty(){
+  const {showFeedback}=useFeedback();
   const [name,setName]=useState("");
   const [host,setHost]=useState("");
   const [description,setDescription]=useState("");
@@ -39,6 +41,7 @@ export default function AddProperty(){
 
     if(!user){
       setLoading(false);
+      showFeedback("You must be logged in to create a property.","error","Property not created");
       router.replace("/auth/login");
       return;
     }
@@ -60,10 +63,11 @@ export default function AddProperty(){
 
     if(error){
       console.log(error);
-      Alert.alert("Property not created",error.message);
+      showFeedback(error.message,"error","Property not created");
       return;
     }
 
+    showFeedback(`${name.trim()} was created and added to your dashboard.`,"success","Property created");
     router.replace("/manager/dashboard");
   }
 
