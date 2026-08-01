@@ -24,6 +24,16 @@ function formatDate(value){
   });
 }
 
+function formatSubmittedDate(value){
+  if(!value) return "";
+  return new Date(value).toLocaleString([],{
+    day:"numeric",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
 export default function ActivityClubProfile(){
   const {id}=useLocalSearchParams();
   const {showFeedback}=useFeedback();
@@ -201,8 +211,43 @@ export default function ActivityClubProfile(){
       </View>}
 
       {!isManager && canApply && clubFull && <View style={styles.fullBox}><Text style={styles.pendingTitle}>Club currently full</Text><Text>The manager has reached the approved member limit.</Text></View>}
-      {!isManager && membership?.status==="pending" && <View style={styles.pendingBox}><Text style={styles.pendingTitle}>Application pending</Text><Text>The manager must approve you before the private message board unlocks.</Text></View>}
+
+      {!isManager && membership?.status==="pending" && (
+        <View style={styles.submittedBox}>
+          <View style={styles.submittedHeader}>
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingBadgeText}>PENDING APPROVAL</Text>
+            </View>
+            <Text style={styles.submittedIcon}>✓</Text>
+          </View>
+          <Text style={styles.submittedTitle}>Application submitted</Text>
+          <Text style={styles.submittedText}>
+            Waiting for the club manager to approve your request. You’ll get access to the private message board once approved.
+          </Text>
+          {!!membership.applied_at && (
+            <Text style={styles.submittedDate}>Sent {formatSubmittedDate(membership.applied_at)}</Text>
+          )}
+          {!!membership.application_note && (
+            <View style={styles.submittedNoteBox}>
+              <Text style={styles.submittedNoteLabel}>Your message</Text>
+              <Text style={styles.submittedNoteText}>{membership.application_note}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {!isManager && membership?.status==="approved" && (
+        <View style={styles.approvedBox}>
+          <View style={styles.approvedBadge}>
+            <Text style={styles.approvedBadgeText}>MEMBERSHIP APPROVED</Text>
+          </View>
+          <Text style={styles.approvedTitle}>You’re a member</Text>
+          <Text style={styles.approvedText}>Your private message-board access is now active.</Text>
+        </View>
+      )}
+
       {!isManager && membership?.status==="rejected" && <View style={styles.rejectedBox}><Text style={styles.pendingTitle}>Application not approved</Text><Text>You can still view the public club profile and can submit another request later.</Text></View>}
+      {!isManager && membership?.status==="removed" && <View style={styles.rejectedBox}><Text style={styles.pendingTitle}>Membership ended</Text><Text>You no longer have private member access, but you can apply to join again.</Text></View>}
       {canOpenBoard && <Pressable style={styles.boardButton} onPress={()=>router.push(`/activity-clubs/message-board/${club.id}`)}><Text style={styles.buttonText}>Open Members’ Message Board</Text></Pressable>}
 
       <View style={styles.section}>
@@ -227,5 +272,54 @@ export default function ActivityClubProfile(){
 }
 
 const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:"#f5f6f8"},content:{padding:20,paddingBottom:50},center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},errorText:{fontSize:18,textAlign:"center"},hero:{backgroundColor:"white",padding:20,borderRadius:16,borderWidth:1,borderColor:"#e1e1e1"},category:{color:"#5633a8",fontWeight:"bold",marginBottom:8},title:{fontSize:30,fontWeight:"bold"},location:{fontSize:16,marginTop:10},address:{color:"#666",marginTop:4},description:{lineHeight:23,color:"#333",marginTop:16},price:{fontWeight:"bold",fontSize:16,marginTop:16},capacityBox:{backgroundColor:"#f0edff",padding:13,borderRadius:11,marginTop:15},capacityTitle:{fontWeight:"bold",color:"#5633a8"},capacityText:{marginTop:4,color:"#555"},applyBox:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#ddd",marginTop:16},applyTitle:{fontSize:19,fontWeight:"bold"},applyText:{color:"#555",lineHeight:20,marginTop:6},noteInput:{borderWidth:1,borderColor:"#ccc",borderRadius:10,padding:12,minHeight:75,textAlignVertical:"top",marginTop:12},primaryButton:{backgroundColor:"#275bd6",padding:16,borderRadius:12,marginTop:12},managerButton:{backgroundColor:"#222",padding:16,borderRadius:12,marginTop:16},boardButton:{backgroundColor:"#5633a8",padding:16,borderRadius:12,marginTop:16},buttonText:{color:"white",fontWeight:"bold",textAlign:"center"},pendingBox:{backgroundColor:"#fff4d6",padding:16,borderRadius:12,marginTop:16},rejectedBox:{backgroundColor:"#ffe7e7",padding:16,borderRadius:12,marginTop:16},fullBox:{backgroundColor:"#ffe8e8",padding:16,borderRadius:12,marginTop:16},pendingTitle:{fontWeight:"bold",fontSize:17,marginBottom:6},section:{marginTop:28},sectionTitle:{fontSize:22,fontWeight:"bold",marginBottom:12},emptyText:{color:"#666"},sessionCard:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#e1e1e1",marginBottom:10},sessionTitle:{fontWeight:"bold",fontSize:17,marginBottom:6},sessionCapacity:{color:"#666",marginTop:5},publicCard:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#e1e1e1",marginBottom:10},cardTitle:{fontWeight:"bold",fontSize:16},cardText:{lineHeight:21,marginTop:7,color:"#444"}
+  container:{flex:1,backgroundColor:"#f5f6f8"},
+  content:{padding:20,paddingBottom:50},
+  center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},
+  errorText:{fontSize:18,textAlign:"center"},
+  hero:{backgroundColor:"white",padding:20,borderRadius:16,borderWidth:1,borderColor:"#e1e1e1"},
+  category:{color:"#5633a8",fontWeight:"bold",marginBottom:8},
+  title:{fontSize:30,fontWeight:"bold"},
+  location:{fontSize:16,marginTop:10},
+  address:{color:"#666",marginTop:4},
+  description:{lineHeight:23,color:"#333",marginTop:16},
+  price:{fontWeight:"bold",fontSize:16,marginTop:16},
+  capacityBox:{backgroundColor:"#f0edff",padding:13,borderRadius:11,marginTop:15},
+  capacityTitle:{fontWeight:"bold",color:"#5633a8"},
+  capacityText:{marginTop:4,color:"#555"},
+  applyBox:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#ddd",marginTop:16},
+  applyTitle:{fontSize:19,fontWeight:"bold"},
+  applyText:{color:"#555",lineHeight:20,marginTop:6},
+  noteInput:{borderWidth:1,borderColor:"#ccc",borderRadius:10,padding:12,minHeight:75,textAlignVertical:"top",marginTop:12},
+  primaryButton:{backgroundColor:"#275bd6",padding:16,borderRadius:12,marginTop:12},
+  managerButton:{backgroundColor:"#222",padding:16,borderRadius:12,marginTop:16},
+  boardButton:{backgroundColor:"#5633a8",padding:16,borderRadius:12,marginTop:16},
+  buttonText:{color:"white",fontWeight:"bold",textAlign:"center"},
+  submittedBox:{backgroundColor:"#fff8df",padding:18,borderRadius:14,marginTop:16,borderWidth:1,borderColor:"#e4c761"},
+  submittedHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
+  pendingBadge:{backgroundColor:"#f2d56b",paddingHorizontal:10,paddingVertical:6,borderRadius:20},
+  pendingBadgeText:{fontSize:11,fontWeight:"bold",color:"#674d00",letterSpacing:0.4},
+  submittedIcon:{fontSize:24,fontWeight:"bold",color:"#9a7600"},
+  submittedTitle:{fontSize:22,fontWeight:"bold",marginTop:14,color:"#2c2c2c"},
+  submittedText:{fontSize:16,lineHeight:23,color:"#51471f",marginTop:8},
+  submittedDate:{fontSize:12,color:"#75662c",marginTop:10,fontWeight:"600"},
+  submittedNoteBox:{backgroundColor:"rgba(255,255,255,0.65)",padding:12,borderRadius:10,marginTop:13},
+  submittedNoteLabel:{fontSize:12,fontWeight:"bold",color:"#75662c",textTransform:"uppercase"},
+  submittedNoteText:{fontSize:15,lineHeight:21,color:"#3f3a27",marginTop:5},
+  approvedBox:{backgroundColor:"#e8f7ed",padding:18,borderRadius:14,marginTop:16,borderWidth:1,borderColor:"#91c9a1"},
+  approvedBadge:{alignSelf:"flex-start",backgroundColor:"#bfe6ca",paddingHorizontal:10,paddingVertical:6,borderRadius:20},
+  approvedBadgeText:{fontSize:11,fontWeight:"bold",color:"#1f7135",letterSpacing:0.4},
+  approvedTitle:{fontSize:22,fontWeight:"bold",marginTop:14,color:"#174d27"},
+  approvedText:{fontSize:16,lineHeight:22,color:"#2e6540",marginTop:7},
+  rejectedBox:{backgroundColor:"#ffe7e7",padding:16,borderRadius:12,marginTop:16},
+  fullBox:{backgroundColor:"#ffe8e8",padding:16,borderRadius:12,marginTop:16},
+  pendingTitle:{fontWeight:"bold",fontSize:17,marginBottom:6},
+  section:{marginTop:28},
+  sectionTitle:{fontSize:22,fontWeight:"bold",marginBottom:12},
+  emptyText:{color:"#666"},
+  sessionCard:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#e1e1e1",marginBottom:10},
+  sessionTitle:{fontWeight:"bold",fontSize:17,marginBottom:6},
+  sessionCapacity:{color:"#666",marginTop:5},
+  publicCard:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#e1e1e1",marginBottom:10},
+  cardTitle:{fontWeight:"bold",fontSize:16},
+  cardText:{lineHeight:21,marginTop:7,color:"#444"}
 });
