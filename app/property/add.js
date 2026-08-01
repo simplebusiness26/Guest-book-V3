@@ -1,260 +1,95 @@
 import React,{useState} from "react";
-
 import {
-View,
-Text,
-TextInput,
-Pressable,
-StyleSheet
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator
 } from "react-native";
-
 import {supabase} from "../../services/supabase";
-
 import {router} from "expo-router";
-
+import LocationPicker from "../../components/LocationPicker";
 
 export default function AddProperty(){
+  const [name,setName]=useState("");
+  const [host,setHost]=useState("");
+  const [description,setDescription]=useState("");
+  const [bookingUrl,setBookingUrl]=useState("");
+  const [selectedLocation,setSelectedLocation]=useState(null);
+  const [loading,setLoading]=useState(false);
 
+  async function addProperty(){
+    if(loading) return;
 
-const [name,setName]=useState("");
+    if(!name.trim()){
+      Alert.alert("Missing information","Property name is required.");
+      return;
+    }
 
-const [host,setHost]=useState("");
+    if(!selectedLocation){
+      Alert.alert("Choose a location","Search for the property address and select the correct result.");
+      return;
+    }
 
-const [description,setDescription]=useState("");
+    setLoading(true);
 
-const [bookingUrl,setBookingUrl]=useState("");
+    const {data:{user}}=await supabase.auth.getUser();
 
-const [address,setAddress]=useState("");
+    if(!user){
+      setLoading(false);
+      router.replace("/auth/login");
+      return;
+    }
 
-const [latitude,setLatitude]=useState("");
+    const {error}=await supabase
+      .from("properties")
+      .insert({
+        name:name.trim(),
+        host:host.trim(),
+        description:description.trim(),
+        booking_url:bookingUrl.trim(),
+        address:selectedLocation.address,
+        latitude:selectedLocation.latitude,
+        longitude:selectedLocation.longitude,
+        owner_id:user.id
+      });
 
-const [longitude,setLongitude]=useState("");
+    setLoading(false);
 
+    if(error){
+      console.log(error);
+      Alert.alert("Property not created",error.message);
+      return;
+    }
 
+    router.replace("/manager/dashboard");
+  }
 
-async function addProperty(){
+  return(
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Add Property</Text>
+      <TextInput style={styles.input} placeholder="Property Name" value={name} onChangeText={setName}/>
+      <TextInput style={styles.input} placeholder="Host Name" value={host} onChangeText={setHost}/>
+      <TextInput style={[styles.input,styles.multiline]} placeholder="Description" value={description} onChangeText={setDescription} multiline/>
+      <TextInput style={styles.input} placeholder="Booking URL" value={bookingUrl} onChangeText={setBookingUrl}/>
 
+      <LocationPicker onChange={setSelectedLocation}/>
 
-const {
-data:{
-user
+      <Pressable style={styles.button} onPress={addProperty} disabled={loading}>
+        {loading ? <ActivityIndicator color="white"/> : <Text style={styles.buttonText}>Create Property Listing</Text>}
+      </Pressable>
+    </ScrollView>
+  );
 }
-}=await supabase.auth.getUser();
-
-
-
-if(!user){
-
-return;
-
-}
-
-
-
-const {error}=await supabase
-
-.from("properties")
-
-.insert({
-
-name,
-
-host,
-
-description,
-
-booking_url:bookingUrl,
-
-address,
-
-latitude:Number(latitude),
-
-longitude:Number(longitude),
-
-owner_id:user.id
-
-});
-
-
-
-if(error){
-
-console.log(error);
-
-return;
-
-}
-
-
-
-router.back();
-
-
-}
-
-
-
-return(
-
-<View style={styles.container}>
-
-
-<Text style={styles.title}>
-Add Property
-</Text>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Property Name"
-
-value={name}
-
-onChangeText={setName}
-
-/>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Host Name"
-
-value={host}
-
-onChangeText={setHost}
-
-/>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Description"
-
-value={description}
-
-onChangeText={setDescription}
-
-/>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Booking URL"
-
-value={bookingUrl}
-
-onChangeText={setBookingUrl}
-
-/>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Address"
-
-value={address}
-
-onChangeText={setAddress}
-
-/>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Latitude"
-
-value={latitude}
-
-onChangeText={setLatitude}
-
-/>
-
-
-
-<TextInput
-
-style={styles.input}
-
-placeholder="Longitude"
-
-value={longitude}
-
-onChangeText={setLongitude}
-
-/>
-
-
-
-<Pressable
-
-style={styles.button}
-
-onPress={addProperty}
-
->
-
-<Text style={styles.buttonText}>
-Create Property Listing
-</Text>
-
-</Pressable>
-
-
-
-</View>
-
-);
-
-}
-
-
 
 const styles=StyleSheet.create({
-
-container:{
-padding:20
-},
-
-title:{
-fontSize:30,
-fontWeight:"bold",
-marginBottom:20
-},
-
-input:{
-borderWidth:1,
-padding:15,
-borderRadius:10,
-marginBottom:15
-},
-
-button:{
-backgroundColor:"#222",
-padding:15,
-borderRadius:10
-},
-
-buttonText:{
-color:"white",
-textAlign:"center"
-}
-
+  container:{flex:1,backgroundColor:"#f5f7fb"},
+  content:{padding:20,paddingBottom:50},
+  title:{fontSize:30,fontWeight:"bold",marginBottom:20},
+  input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",padding:15,borderRadius:10,marginBottom:15},
+  multiline:{minHeight:100,textAlignVertical:"top"},
+  button:{backgroundColor:"#222",padding:15,borderRadius:10},
+  buttonText:{color:"white",textAlign:"center",fontWeight:"bold"}
 });
