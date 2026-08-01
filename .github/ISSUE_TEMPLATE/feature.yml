@@ -1,0 +1,44 @@
+name: Guestbook feature
+description: Create a clearly scoped feature task for an agent
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should change for the user?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the exact behaviours that must work.
+      placeholder: |
+        - Business owner can...
+        - Guest cannot...
+        - Loading state shows...
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Expected files or area
+      description: Identify likely screens, components or database tables.
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account types affected
+      multiple: true
+      options:
+        - Logged out
+        - Guest
+        - Business
+        - Host
+        - Admin
+  - type: textarea
+    id: testing
+    attributes:
+      label: Manual Replit test
+      description: Exact steps the QA agent or Craig should follow.
