@@ -12,9 +12,11 @@ import {
 import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {supabase} from "../../../services/supabase";
 import LocationPicker from "../../../components/LocationPicker";
+import {useFeedback} from "../../../context/FeedbackContext";
 
 export default function EditProperty(){
   const {id}=useLocalSearchParams();
+  const {showFeedback}=useFeedback();
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [property,setProperty]=useState(null);
@@ -37,6 +39,7 @@ export default function EditProperty(){
 
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){
+      showFeedback("Please log in before editing a property.","error","Login required");
       router.replace("/auth/login");
       return;
     }
@@ -49,7 +52,7 @@ export default function EditProperty(){
       .single();
 
     if(error || !data){
-      Alert.alert("Access denied","You do not own this property listing.");
+      showFeedback("You do not own this property listing.","error","Access denied");
       router.replace("/manager/dashboard");
       return;
     }
@@ -97,11 +100,11 @@ export default function EditProperty(){
     setSaving(false);
 
     if(error){
-      Alert.alert("Save error",error.message);
+      showFeedback(error.message,"error","Property not updated");
       return;
     }
 
-    Alert.alert("Saved","Property updated successfully.");
+    showFeedback(`${name.trim()} was updated successfully.`,"success","Property updated");
     router.replace("/manager/dashboard");
   }
 
@@ -114,9 +117,10 @@ export default function EditProperty(){
         onPress:async()=>{
           const {error}=await supabase.from("properties").delete().eq("id",property.id);
           if(error){
-            Alert.alert("Delete error",error.message);
+            showFeedback(error.message,"error","Property not deleted");
             return;
           }
+          showFeedback(`${property.name} was deleted.`,"success","Property deleted");
           router.replace("/manager/dashboard");
         }
       }
@@ -135,12 +139,7 @@ export default function EditProperty(){
       <TextInput style={[styles.input,styles.multiline]} placeholder="Description" value={description} onChangeText={setDescription} multiline/>
       <TextInput style={styles.input} placeholder="Booking URL" value={bookingUrl} onChangeText={setBookingUrl}/>
 
-      <LocationPicker
-        initialAddress={address}
-        initialLatitude={latitude}
-        initialLongitude={longitude}
-        onChange={chooseLocation}
-      />
+      <LocationPicker initialAddress={address} initialLatitude={latitude} initialLongitude={longitude} onChange={chooseLocation}/>
 
       <Pressable style={styles.button} onPress={save} disabled={saving}>
         {saving ? <ActivityIndicator color="white"/> : <Text style={styles.buttonText}>Save Changes</Text>}
