@@ -7,11 +7,11 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   Image
 } from "react-native";
 import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {supabase} from "../../../services/supabase";
+import {useFeedback} from "../../../context/FeedbackContext";
 
 const MESSAGE_COLOURS=["#e7f0ff","#f1e8ff","#e4f6ea","#fff0dc","#ffe7ef","#e5f7f5","#f3f0df"];
 
@@ -27,6 +27,7 @@ function colourForUser(userId){
 
 export default function ActivityClubMessageBoard(){
   const {id}=useLocalSearchParams();
+  const {showFeedback}=useFeedback();
   const [club,setClub]=useState(null);
   const [messages,setMessages]=useState([]);
   const [messageProfiles,setMessageProfiles]=useState({});
@@ -136,11 +137,12 @@ export default function ActivityClubMessageBoard(){
     setSending(false);
 
     if(postError){
-      Alert.alert("Message not sent",postError.message);
+      showFeedback(postError.message,"error","Message not sent");
       return;
     }
 
     setMessage("");
+    showFeedback("Your message was posted to the private board.","success","Message sent");
     await loadBoard();
   }
 
@@ -175,14 +177,7 @@ export default function ActivityClubMessageBoard(){
           const ownMessage=item.user_id===user?.id;
 
           return(
-            <View
-              key={item.id}
-              style={[
-                styles.messageCard,
-                {backgroundColor:colourForUser(item.user_id)},
-                ownMessage ? styles.ownMessage : styles.otherMessage
-              ]}
-            >
+            <View key={item.id} style={[styles.messageCard,{backgroundColor:colourForUser(item.user_id)},ownMessage ? styles.ownMessage : styles.otherMessage]}>
               <View style={styles.authorRow}>
                 {author?.profile_photo ? (
                   <Image source={{uri:author.profile_photo}} style={styles.avatar}/>
