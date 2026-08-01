@@ -3,7 +3,8 @@ import {
   View,
   Text,
   Pressable,
-  StyleSheet
+  StyleSheet,
+  Platform
 } from "react-native";
 import {router,usePathname} from "expo-router";
 import {useNotifications} from "../context/NotificationContext";
@@ -13,13 +14,29 @@ export default function Header(){
   const {unreadCount}=useNotifications();
 
   function goBack(){
-    if(pathname!=="/") router.back();
+    if(pathname==="/") return;
+
+    if(Platform.OS==="web" && typeof window!=="undefined"){
+      if(window.history.length>1){
+        window.history.back();
+      }else{
+        router.replace("/");
+      }
+      return;
+    }
+
+    if(router.canGoBack()){
+      router.back();
+    }else{
+      router.replace("/");
+    }
   }
 
   return(
     <View style={styles.container}>
       <View style={styles.sideArea}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Go back"
           style={styles.iconButton}
           onPress={goBack}
@@ -32,6 +49,7 @@ export default function Header(){
 
       <View style={[styles.sideArea,styles.rightArea]}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Open notifications"
           style={styles.iconButton}
           onPress={()=>router.push("/notifications")}
@@ -45,6 +63,7 @@ export default function Header(){
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Open menu"
           style={styles.iconButton}
           onPress={()=>router.push("/menu")}
