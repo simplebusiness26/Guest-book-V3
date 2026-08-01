@@ -104,7 +104,6 @@ export default function LocationPicker({
           setSelected(null);
           setResults([]);
           setError("");
-          onChange?.(null);
         }}
         autoCapitalize="words"
       />
