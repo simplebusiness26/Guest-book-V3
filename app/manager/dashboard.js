@@ -12,6 +12,7 @@ import {
 import {router,useFocusEffect} from "expo-router";
 import {supabase} from "../../services/supabase";
 import QRCodeGenerator from "../../components/QRCodeGenerator";
+import {useFeedback} from "../../context/FeedbackContext";
 
 const ENABLED_STATUSES=["active","trial"];
 
@@ -60,13 +61,16 @@ function MemberIdentity({membership,profiles}){
       )}
       <View style={styles.memberNameWrap}>
         <Text style={styles.applicantName}>{name}</Text>
-        <Text style={styles.memberAccessText}>{membership.status==="approved" ? "Message board access enabled" : "Waiting for approval"}</Text>
+        <Text style={styles.memberAccessText}>
+          {membership.status==="approved" ? "Message board access enabled" : "Waiting for approval"}
+        </Text>
       </View>
     </View>
   );
 }
 
 export default function ManagerDashboard(){
+  const {showFeedback}=useFeedback();
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [user,setUser]=useState(null);
@@ -190,6 +194,12 @@ export default function ManagerDashboard(){
     return ENABLED_STATUSES.includes(capabilities?.[`${capability}_status`]);
   }
 
+  function membershipName(membershipId){
+    const membership=memberships.find(item=>item.id===membershipId);
+    const profile=membership ? memberProfiles[membership.user_id] : null;
+    return profile?.full_name || membership?.applicant_name || "Explorer";
+  }
+
   async function requestCapability(capability,label){
     if(!user) return;
     setWorkingId(`request-${capability}`);
@@ -210,11 +220,11 @@ export default function ManagerDashboard(){
     setWorkingId(null);
 
     if(requestError){
-      Alert.alert("Request not sent",requestError.message);
+      showFeedback(requestError.message,"error","Request not sent");
       return;
     }
 
-    Alert.alert("Request sent",`${label} access has been requested.`);
+    showFeedback(`${label} access has been requested.`,"success","Request sent");
     await loadDashboard();
   }
 
@@ -222,22 +232,32 @@ export default function ManagerDashboard(){
     const approvedCount=(approvedByClub[club.id] || []).length;
 
     if(status==="approved" && approvedCount>=club.member_limit){
-      Alert.alert("Member limit reached",`${club.name} already has ${club.member_limit} approved members.`);
+      showFeedback(`${club.name} already has ${club.member_limit} approved members.`,"error","Member limit reached");
       return;
     }
 
+    const name=membershipName(membershipId);
     setWorkingId(membershipId);
+
     const {error:updateError}=await supabase
       .from("activity_memberships")
       .update({status,decided_at:new Date().toISOString()})
       .eq("id",membershipId);
+
     setWorkingId(null);
 
     if(updateError){
-      Alert.alert("Member not updated",updateError.message);
+      showFeedback(updateError.message,"error","Member not updated");
       return;
     }
 
+    const messages={
+      approved:`${name} was approved and now has message-board access.`,
+      rejected:`${name}'s membership request was rejected.`,
+      removed:`${name} was removed and their private-board access was revoked.`
+    };
+
+    showFeedback(messages[status] || `${name}'s membership was updated.`,"success","Membership updated");
     await loadDashboard();
   }
 
