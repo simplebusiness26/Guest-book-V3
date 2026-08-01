@@ -51,6 +51,20 @@ function MemberIdentity({membership,profiles}){
   );
 }
 
+function NextStep({icon,text,tone="success"}){
+  return(
+    <View style={styles.nextStepRow}>
+      <View style={[
+        styles.nextStepIcon,
+        tone==="info" ? styles.infoIcon : styles.successIcon
+      ]}>
+        <Text style={styles.nextStepIconText}>{icon}</Text>
+      </View>
+      <Text style={styles.nextStepText}>{text}</Text>
+    </View>
+  );
+}
+
 export default function ManagerRequests(){
   const params=useLocalSearchParams();
   const targetClubId=firstParam(params.club);
@@ -208,14 +222,15 @@ export default function ManagerRequests(){
     const name=membershipName(membership);
     setWorkingId(membership.id);
 
-    const {error:updateError}=await supabase
+    const {data:updatedRows,error:updateError}=await supabase
       .from("activity_memberships")
       .update({
         status,
         decided_at:new Date().toISOString()
       })
       .eq("id",membership.id)
-      .eq("status","pending");
+      .eq("status","pending")
+      .select("id,user_id,status");
 
     setWorkingId(null);
 
@@ -224,11 +239,23 @@ export default function ManagerRequests(){
       return;
     }
 
+    if(!updatedRows?.length){
+      showFeedback(
+        "This request was already updated. Refresh the Action Centre to see its current status.",
+        "error",
+        "Request already handled"
+      );
+      await loadActions();
+      return;
+    }
+
     setCompletedAction({
       membershipId:membership.id,
+      userId:membership.user_id,
       name,
       clubName:club.name,
       clubId:club.id,
+      memberLimit:limit,
       status
     });
 
@@ -291,6 +318,112 @@ export default function ManagerRequests(){
           </Pressable>
         </View>
       </View>
+    );
+  }
+
+  function renderCompletion(){
+    if(!completedAction) return null;
+
+    const approved=completedAction.status==="approved";
+    const currentApprovedCount=(approvedByClub[completedAction.clubId] || []).length;
+    const memberLabel=completedAction.name || "Explorer";
+
+    return(
+      <>
+        <View style={[
+          styles.resultCard,
+          approved ? styles.approvedResultCard : styles.rejectedResultCard
+        ]}>
+          <View style={[
+            styles.resultIconCircle,
+            approved ? styles.approvedIconCircle : styles.rejectedIconCircle
+          ]}>
+            <Text style={styles.resultIcon}>{approved ? "✓" : "×"}</Text>
+          </View>
+
+          <Text style={styles.resultTitle}>
+            {approved ? "Membership approved" : "Application rejected"}
+          </Text>
+
+          <Text style={styles.resultText}>
+            {approved
+              ? `${memberLabel} is now a member of ${completedAction.clubName} and has access to the private message board.`
+              : `${memberLabel}'s membership request was not approved. They have been notified.`
+            }
+          </Text>
+
+          <View style={[
+            styles.resultCapacityCard,
+            approved ? styles.approvedCapacityCard : styles.rejectedCapacityCard
+          ]}>
+            <Text style={styles.resultCapacityIcon}>👥</Text>
+            <View style={styles.resultCapacityTextWrap}>
+              <Text style={styles.resultCapacityLabel}>Club capacity</Text>
+              <Text style={styles.resultCapacityValue}>
+                {currentApprovedCount} of {completedAction.memberLimit} members approved
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.primaryButton}
+            onPress={()=>{
+              if(approved){
+                router.push(`/manager/dashboard?club=${completedAction.clubId}&member=${completedAction.userId}&view=members`);
+              }else{
+                router.replace(`/manager/requests?club=${completedAction.clubId}&view=requests`);
+              }
+            }}
+          >
+            <Text style={styles.buttonText}>
+              {approved ? "View approved member" : "Back to pending requests"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.inlineLinkButton}
+            onPress={()=>{
+              if(approved){
+                router.push(`/manager/dashboard?club=${completedAction.clubId}&view=members`);
+              }else{
+                router.replace(`/manager/requests?club=${completedAction.clubId}&view=requests`);
+              }
+            }}
+          >
+            <Text style={styles.inlineLinkIcon}>▣</Text>
+            <Text style={styles.inlineLinkText}>
+              {approved ? "View all club members" : "View all requests for this club"}
+            </Text>
+            <Text style={styles.inlineLinkArrow}>›</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.nextCard}>
+          <Text style={styles.nextCardTitle}>What happens next?</Text>
+
+          <NextStep
+            icon="✓"
+            text={`${memberLabel} has been notified`}
+          />
+
+          <NextStep
+            icon="✓"
+            text={approved
+              ? "They can now access the private message board"
+              : "They can apply again at any time"
+            }
+          />
+
+          <NextStep
+            icon="i"
+            tone="info"
+            text={approved
+              ? "You can remove members at any time from the Manager Dashboard"
+              : "You can continue managing members from the Manager Dashboard"
+            }
+          />
+        </View>
+      </>
     );
   }
 
@@ -375,17 +508,14 @@ export default function ManagerRequests(){
         </View>
       )}
 
-      {focusedRequestMissing && (
+      {focusedRequestMissing && completedAction && renderCompletion()}
+
+      {focusedRequestMissing && !completedAction && (
         <View style={styles.completedCard}>
           <Text style={styles.completedIcon}>✓</Text>
-          <Text style={styles.completedTitle}>
-            {completedAction ? "Request completed" : "This request is no longer pending"}
-          </Text>
+          <Text style={styles.completedTitle}>This request is no longer pending</Text>
           <Text style={styles.completedText}>
-            {completedAction
-              ? `${completedAction.name} was ${completedAction.status}.`
-              : "It may already have been approved or rejected."
-            }
+            It may already have been approved or rejected.
           </Text>
 
           {focusedClub && (
@@ -485,9 +615,37 @@ const styles=StyleSheet.create({
   completedIcon:{fontSize:36,color:"#218739",fontWeight:"bold"},
   completedTitle:{fontSize:21,fontWeight:"bold",marginTop:8},
   completedText:{color:"#53605a",textAlign:"center",lineHeight:20,marginTop:7},
+  resultCard:{borderRadius:16,padding:22,alignItems:"center",borderWidth:1},
+  approvedResultCard:{backgroundColor:"#edf8f0",borderColor:"#4ba965"},
+  rejectedResultCard:{backgroundColor:"#fff0ef",borderColor:"#d83c31"},
+  resultIconCircle:{width:70,height:70,borderRadius:35,alignItems:"center",justifyContent:"center"},
+  approvedIconCircle:{backgroundColor:"#24953e"},
+  rejectedIconCircle:{backgroundColor:"#cf3028"},
+  resultIcon:{color:"white",fontSize:40,fontWeight:"bold",lineHeight:44},
+  resultTitle:{fontSize:24,fontWeight:"bold",marginTop:16,textAlign:"center"},
+  resultText:{fontSize:16,color:"#52605a",lineHeight:23,textAlign:"center",marginTop:10},
+  resultCapacityCard:{alignSelf:"stretch",borderRadius:12,padding:14,marginTop:18,flexDirection:"row",alignItems:"center"},
+  approvedCapacityCard:{backgroundColor:"#dcf3e3"},
+  rejectedCapacityCard:{backgroundColor:"#f8d9d5"},
+  resultCapacityIcon:{fontSize:27,marginRight:12},
+  resultCapacityTextWrap:{flex:1},
+  resultCapacityLabel:{fontWeight:"bold",fontSize:15},
+  resultCapacityValue:{fontSize:13,color:"#5b655f",marginTop:3},
+  inlineLinkButton:{alignSelf:"stretch",borderTopWidth:1,borderColor:"rgba(80,90,85,0.25)",marginTop:18,paddingTop:15,flexDirection:"row",alignItems:"center"},
+  inlineLinkIcon:{fontSize:19,marginRight:9},
+  inlineLinkText:{fontWeight:"600",flex:1},
+  inlineLinkArrow:{fontSize:26,color:"#555"},
+  nextCard:{backgroundColor:"white",borderWidth:1,borderColor:"#dfe3e8",borderRadius:16,padding:20,marginTop:16},
+  nextCardTitle:{fontSize:19,fontWeight:"bold",marginBottom:14},
+  nextStepRow:{flexDirection:"row",alignItems:"flex-start",marginBottom:13},
+  nextStepIcon:{width:25,height:25,borderRadius:13,alignItems:"center",justifyContent:"center",marginRight:11},
+  successIcon:{backgroundColor:"#52a765"},
+  infoIcon:{backgroundColor:"#4c6fd1"},
+  nextStepIconText:{color:"white",fontWeight:"bold",fontSize:13},
+  nextStepText:{flex:1,fontSize:15,lineHeight:21,color:"#343b43"},
   emptyCard:{backgroundColor:"white",borderWidth:1,borderColor:"#dfe3e8",borderRadius:16,padding:28,alignItems:"center"},
   emptyIcon:{fontSize:38,color:"#218739",fontWeight:"bold"},
   emptyTitle:{fontSize:21,fontWeight:"bold",marginTop:8},
   emptyText:{color:"#666",textAlign:"center",lineHeight:21,marginTop:7},
-  primaryButton:{backgroundColor:"#275bd6",paddingHorizontal:18,paddingVertical:13,borderRadius:10,marginTop:17,alignSelf:"stretch"}
+  primaryButton:{backgroundColor:"#275bd6",paddingHorizontal:18,paddingVertical:14,borderRadius:10,marginTop:18,alignSelf:"stretch"}
 });
