@@ -1,14 +1,54 @@
 import React,{createContext,useContext,useEffect,useRef,useState} from "react";
-import {View,Text,Pressable,StyleSheet} from "react-native";
+import {View,Text,Pressable,StyleSheet,Alert,Platform} from "react-native";
 
 const FeedbackContext=createContext(null);
+
+function installWebAlertFallback(){
+  if(Platform.OS!=="web" || typeof window==="undefined"){
+    return()=>{};
+  }
+
+  const originalAlert=Alert.alert;
+
+  Alert.alert=(title,message,buttons)=>{
+    const text=[title,message].filter(Boolean).join("\n\n");
+    const actions=Array.isArray(buttons) ? buttons : [];
+
+    if(actions.length<=1){
+      window.alert(text);
+      actions[0]?.onPress?.();
+      return;
+    }
+
+    const cancelAction=actions.find(action=>action.style==="cancel");
+    const confirmAction=
+      actions.find(action=>action.style==="destructive") ||
+      actions.find(action=>action.style!=="cancel") ||
+      actions[0];
+
+    const confirmed=window.confirm(text);
+
+    if(confirmed){
+      confirmAction?.onPress?.();
+    }else{
+      cancelAction?.onPress?.();
+    }
+  };
+
+  return()=>{
+    Alert.alert=originalAlert;
+  };
+}
 
 export function FeedbackProvider({children}){
   const [notice,setNotice]=useState(null);
   const timerRef=useRef(null);
 
   useEffect(()=>{
+    const removeWebAlertFallback=installWebAlertFallback();
+
     return()=>{
+      removeWebAlertFallback();
       if(timerRef.current) clearTimeout(timerRef.current);
     };
   },[]);
