@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-
+import React,{useEffect,useState} from "react";
 import {
   View,
   Text,
@@ -8,503 +7,168 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  ScrollView,
+  ScrollView
 } from "react-native";
+import {useLocalSearchParams,router} from "expo-router";
+import {supabase} from "../../../services/supabase";
+import LocationPicker from "../../../components/LocationPicker";
 
-import { useLocalSearchParams, router } from "expo-router";
+export default function EditBusiness(){
+  const {id}=useLocalSearchParams();
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [business,setBusiness]=useState(null);
+  const [name,setName]=useState("");
+  const [description,setDescription]=useState("");
+  const [phone,setPhone]=useState("");
+  const [website,setWebsite]=useState("");
+  const [address,setAddress]=useState("");
+  const [latitude,setLatitude]=useState(null);
+  const [longitude,setLongitude]=useState(null);
+  const [category,setCategory]=useState("");
+  const [image,setImage]=useState("");
+  const [openingHours,setOpeningHours]=useState("");
 
-import { supabase } from "../../../services/supabase";
+  useEffect(()=>{loadBusiness();},[id]);
 
+  async function loadBusiness(){
+    const {data:{user}}=await supabase.auth.getUser();
 
-export default function EditBusiness() {
+    if(!user){
+      Alert.alert("Login required","Please login first");
+      router.back();
+      return;
+    }
 
+    const {data,error}=await supabase
+      .from("businesses")
+      .select("*")
+      .eq("id",id)
+      .eq("owner_id",user.id)
+      .single();
 
-const { id } = useLocalSearchParams();
+    if(error || !data){
+      Alert.alert("Access denied","You do not own this business");
+      router.back();
+      return;
+    }
 
+    setBusiness(data);
+    setName(data.name || "");
+    setDescription(data.description || "");
+    setPhone(data.phone || "");
+    setWebsite(data.website || "");
+    setAddress(data.address || "");
+    setLatitude(data.latitude ?? null);
+    setLongitude(data.longitude ?? null);
+    setCategory(data.category || "");
+    setImage(data.image || "");
+    setOpeningHours(data.opening_hours || "");
+    setLoading(false);
+  }
 
-const [loading,setLoading] = useState(true);
-const [saving,setSaving] = useState(false);
+  function chooseLocation(value){
+    setAddress(value.address);
+    setLatitude(value.latitude);
+    setLongitude(value.longitude);
+  }
 
-const [business,setBusiness] = useState(null);
+  async function save(){
+    if(!business || saving) return;
 
+    if(!address || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))){
+      Alert.alert("Choose a location","Search for the business address and select the correct result.");
+      return;
+    }
 
-const [name,setName] = useState("");
-const [description,setDescription] = useState("");
-const [phone,setPhone] = useState("");
-const [website,setWebsite] = useState("");
-const [address,setAddress] = useState("");
-const [category,setCategory] = useState("");
-const [image,setImage] = useState("");
-const [openingHours,setOpeningHours] = useState("");
+    setSaving(true);
 
+    const {error}=await supabase
+      .from("businesses")
+      .update({
+        name:name.trim(),
+        description:description.trim(),
+        phone:phone.trim(),
+        website:website.trim(),
+        address,
+        latitude:Number(latitude),
+        longitude:Number(longitude),
+        category:category.trim(),
+        image:image.trim(),
+        opening_hours:openingHours.trim()
+      })
+      .eq("id",business.id);
 
+    setSaving(false);
 
+    if(error){
+      Alert.alert("Save error",error.message);
+      return;
+    }
 
+    Alert.alert("Saved","Business updated successfully");
+    router.replace("/manager/dashboard");
+  }
 
-useEffect(()=>{
+  function deleteBusiness(){
+    Alert.alert("Delete Business","Are you sure you want to delete this listing?",[
+      {text:"Cancel",style:"cancel"},
+      {
+        text:"Delete",
+        style:"destructive",
+        onPress:async()=>{
+          const {error}=await supabase.from("businesses").delete().eq("id",business.id);
+          if(error){
+            Alert.alert("Delete error",error.message);
+            return;
+          }
+          router.replace("/manager/dashboard");
+        }
+      }
+    ]);
+  }
 
-loadBusiness();
+  if(loading){
+    return <View style={styles.loading}><ActivityIndicator size="large"/></View>;
+  }
 
-},[]);
+  return(
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Edit Business</Text>
+      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Business name"/>
+      <TextInput style={styles.input} value={category} onChangeText={setCategory} placeholder="Category"/>
+      <TextInput style={[styles.input,styles.multiline]} value={description} onChangeText={setDescription} placeholder="Description" multiline/>
 
+      <LocationPicker
+        initialAddress={address}
+        initialLatitude={latitude}
+        initialLongitude={longitude}
+        onChange={chooseLocation}
+      />
 
+      <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Phone"/>
+      <TextInput style={styles.input} value={website} onChangeText={setWebsite} placeholder="Website"/>
+      <TextInput style={styles.input} value={image} onChangeText={setImage} placeholder="Main image URL"/>
+      <TextInput style={styles.input} value={openingHours} onChangeText={setOpeningHours} placeholder="Opening hours"/>
 
-
-
-async function loadBusiness(){
-
-
-const {
-data:{
-user
+      <Pressable style={styles.button} onPress={save} disabled={saving}>
+        {saving ? <ActivityIndicator color="white"/> : <Text style={styles.buttonText}>Save Changes</Text>}
+      </Pressable>
+      <Pressable style={styles.deleteButton} onPress={deleteBusiness}>
+        <Text style={styles.buttonText}>Delete Business</Text>
+      </Pressable>
+    </ScrollView>
+  );
 }
 
-}=await supabase.auth.getUser();
-
-
-
-if(!user){
-
-Alert.alert(
-"Login required",
-"Please login first"
-);
-
-router.back();
-
-return;
-
-}
-
-
-
-
-const {
-data,
-error
-
-}=await supabase
-
-.from("businesses")
-
-.select("*")
-
-.eq("id",id)
-
-.eq("owner_id",user.id)
-
-.single();
-
-
-
-
-if(error || !data){
-
-Alert.alert(
-"Access denied",
-"You do not own this business"
-);
-
-router.back();
-
-return;
-
-}
-
-
-
-
-
-setBusiness(data);
-
-setName(data.name || "");
-setDescription(data.description || "");
-setPhone(data.phone || "");
-setWebsite(data.website || "");
-setAddress(data.address || "");
-setCategory(data.category || "");
-setImage(data.image || "");
-setOpeningHours(data.opening_hours || "");
-
-
-setLoading(false);
-
-
-}
-
-
-
-
-
-
-
-async function save(){
-
-
-if(!business || saving){
-
-return;
-
-}
-
-
-setSaving(true);
-
-
-
-const {
-error
-}=await supabase
-
-.from("businesses")
-
-.update({
-
-name,
-description,
-phone,
-website,
-address,
-category,
-image,
-opening_hours:openingHours
-
-})
-
-.eq("id",business.id);
-
-
-
-
-
-setSaving(false);
-
-
-
-if(error){
-
-Alert.alert(
-"Save error",
-error.message
-);
-
-return;
-
-}
-
-
-
-
-Alert.alert(
-"Saved",
-"Business updated successfully"
-);
-
-
-router.back();
-
-
-}
-
-
-
-
-
-
-
-
-async function deleteBusiness(){
-
-
-
-Alert.alert(
-
-"Delete Business",
-
-"Are you sure you want to delete this listing?",
-
-[
-
-{
-text:"Cancel",
-style:"cancel"
-},
-
-{
-
-text:"Delete",
-
-style:"destructive",
-
-onPress:async()=>{
-
-
-const {
-error
-}=await supabase
-
-.from("businesses")
-
-.delete()
-
-.eq("id",business.id);
-
-
-
-
-if(error){
-
-Alert.alert(
-"Delete error",
-error.message
-);
-
-return;
-
-}
-
-
-
-router.back();
-
-
-}
-
-}
-
-]
-
-);
-
-
-}
-
-
-
-
-
-
-
-if(loading){
-
-return(
-
-<View style={styles.loading}>
-
-<ActivityIndicator size="large"/>
-
-</View>
-
-);
-
-}
-
-
-
-
-
-
-return(
-
-<ScrollView
-
-style={styles.container}
-
-contentContainerStyle={{
-paddingBottom:50
-}}
-
->
-
-
-<Text style={styles.title}>
-Edit Business
-</Text>
-
-
-
-
-
-<TextInput
-style={styles.input}
-value={name}
-onChangeText={setName}
-placeholder="Business name"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={category}
-onChangeText={setCategory}
-placeholder="Category"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={description}
-onChangeText={setDescription}
-placeholder="Description"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={address}
-onChangeText={setAddress}
-placeholder="Address"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={phone}
-onChangeText={setPhone}
-placeholder="Phone"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={website}
-onChangeText={setWebsite}
-placeholder="Website"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={image}
-onChangeText={setImage}
-placeholder="Main image URL"
-/>
-
-
-
-
-<TextInput
-style={styles.input}
-value={openingHours}
-onChangeText={setOpeningHours}
-placeholder="Opening hours"
-/>
-
-
-
-
-
-<Pressable
-
-style={styles.button}
-
-onPress={save}
-
->
-
-{
-saving ?
-
-<ActivityIndicator color="white"/>
-
-:
-
-<Text style={styles.buttonText}>
-Save Changes
-</Text>
-
-}
-
-</Pressable>
-
-
-
-
-
-<Pressable
-
-style={styles.deleteButton}
-
-onPress={deleteBusiness}
-
->
-
-<Text style={styles.buttonText}>
-Delete Business
-</Text>
-
-</Pressable>
-
-
-
-
-</ScrollView>
-
-);
-
-}
-
-
-
-
-
-
-
-const styles = StyleSheet.create({
-
-container:{
-padding:20
-},
-
-loading:{
-flex:1,
-justifyContent:"center",
-alignItems:"center"
-},
-
-title:{
-fontSize:30,
-fontWeight:"bold",
-marginBottom:20
-},
-
-input:{
-borderWidth:1,
-padding:15,
-borderRadius:10,
-marginBottom:15
-},
-
-button:{
-backgroundColor:"#222",
-padding:15,
-borderRadius:10,
-marginTop:10
-},
-
-deleteButton:{
-backgroundColor:"red",
-padding:15,
-borderRadius:10,
-marginTop:15
-},
-
-buttonText:{
-color:"white",
-textAlign:"center",
-fontWeight:"bold"
-}
-
+const styles=StyleSheet.create({
+  container:{flex:1,backgroundColor:"#f5f7fb"},
+  content:{padding:20,paddingBottom:50},
+  loading:{flex:1,justifyContent:"center",alignItems:"center"},
+  title:{fontSize:30,fontWeight:"bold",marginBottom:20},
+  input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",padding:15,borderRadius:10,marginBottom:15},
+  multiline:{minHeight:100,textAlignVertical:"top"},
+  button:{backgroundColor:"#222",padding:15,borderRadius:10,marginTop:10},
+  deleteButton:{backgroundColor:"#c62828",padding:15,borderRadius:10,marginTop:15},
+  buttonText:{color:"white",textAlign:"center",fontWeight:"bold"}
 });
