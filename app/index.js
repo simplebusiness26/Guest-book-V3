@@ -58,6 +58,12 @@ export default function Home(){
 
   return(
     <View style={styles.container}>
+      <Text style={styles.title}>Guestbook</Text>
+
+      <Text style={styles.subtitle}>
+        Discover places, stays and local experiences
+      </Text>
+
       {loggedIn && (
         <Pressable
           accessibilityRole="button"
@@ -65,10 +71,10 @@ export default function Home(){
             ? `${unreadCount} unread notifications`
             : "Notifications"
           }
-          style={styles.notificationButton}
+          style={styles.notificationsButton}
           onPress={()=>router.push("/notifications")}
         >
-          <Text style={styles.notificationIcon}>🔔</Text>
+          <Text style={styles.notificationsText}>🔔 Notifications</Text>
 
           {unreadCount>0 && (
             <View style={styles.notificationBadge}>
@@ -79,12 +85,6 @@ export default function Home(){
           )}
         </Pressable>
       )}
-
-      <Text style={styles.title}>Guestbook</Text>
-
-      <Text style={styles.subtitle}>
-        Discover places, stays and local experiences
-      </Text>
 
       <Pressable
         style={styles.primaryButton}
@@ -127,41 +127,6 @@ const styles=StyleSheet.create({
     alignItems:"center",
     padding:25
   },
-  notificationButton:{
-    position:"absolute",
-    top:24,
-    right:22,
-    width:52,
-    height:52,
-    borderRadius:26,
-    alignItems:"center",
-    justifyContent:"center",
-    backgroundColor:"#2b2b2b",
-    borderWidth:1,
-    borderColor:"#4c4c4c",
-    zIndex:20,
-    elevation:8
-  },
-  notificationIcon:{fontSize:24},
-  notificationBadge:{
-    position:"absolute",
-    top:-4,
-    right:-5,
-    minWidth:23,
-    height:23,
-    paddingHorizontal:5,
-    borderRadius:12,
-    backgroundColor:"#e03131",
-    alignItems:"center",
-    justifyContent:"center",
-    borderWidth:2,
-    borderColor:"#1d1d1d"
-  },
-  notificationBadgeText:{
-    color:"white",
-    fontSize:11,
-    fontWeight:"bold"
-  },
   title:{
     fontSize:42,
     fontWeight:"bold",
@@ -169,8 +134,43 @@ const styles=StyleSheet.create({
   },
   subtitle:{
     fontSize:16,
-    marginBottom:40,
+    marginBottom:32,
     textAlign:"center"
+  },
+  notificationsButton:{
+    width:"90%",
+    minHeight:58,
+    paddingHorizontal:18,
+    paddingVertical:15,
+    borderRadius:12,
+    marginBottom:15,
+    backgroundColor:"#2b2b2b",
+    borderWidth:1,
+    borderColor:"#555",
+    flexDirection:"row",
+    alignItems:"center",
+    justifyContent:"center"
+  },
+  notificationsText:{
+    color:"white",
+    fontSize:17,
+    fontWeight:"bold",
+    textAlign:"center"
+  },
+  notificationBadge:{
+    minWidth:25,
+    height:25,
+    paddingHorizontal:6,
+    borderRadius:13,
+    backgroundColor:"#e03131",
+    alignItems:"center",
+    justifyContent:"center",
+    marginLeft:10
+  },
+  notificationBadgeText:{
+    color:"white",
+    fontSize:12,
+    fontWeight:"bold"
   },
   button:{
     backgroundColor:"#222",
