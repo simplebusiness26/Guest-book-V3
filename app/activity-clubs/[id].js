@@ -104,7 +104,7 @@ export default function ActivityClubProfile(){
         .eq("user_id",currentUser.id)
         .maybeSingle();
       setMembership(membershipRow || null);
-      setApplicationNote(membershipRow?.application_note || "");
+      setApplicationNote(membershipRow?.status==="pending" ? (membershipRow.application_note || "") : "");
     }else{
       setMembership(null);
       setApplicationNote("");
