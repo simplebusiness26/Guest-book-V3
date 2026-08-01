@@ -1,6 +1,5 @@
 import React,{useEffect,useState} from "react";
 import {
-  View,
   Text,
   StyleSheet,
   Pressable,
@@ -63,15 +62,9 @@ export default function Menu(){
       )}
 
       {userType==="manager" && (
-        <>
-          <Pressable style={styles.item} onPress={()=>router.push("/business/dashboard")}>
-            <Text style={styles.text}>📊 Manager Dashboard</Text>
-          </Pressable>
-
-          <Pressable style={styles.managerActivityItem} onPress={()=>router.push("/activity-clubs/manage")}>
-            <Text style={styles.text}>⚙️ Manage Activity Clubs</Text>
-          </Pressable>
-        </>
+        <Pressable style={styles.managerItem} onPress={()=>router.push("/manager/dashboard")}>
+          <Text style={styles.text}>📊 Manager Dashboard</Text>
+        </Pressable>
       )}
 
       {userType==="admin" && (
@@ -107,7 +100,7 @@ const styles=StyleSheet.create({
   title:{fontSize:32,fontWeight:"bold",marginBottom:30},
   item:{backgroundColor:"#222",padding:16,borderRadius:10,marginBottom:15},
   activityItem:{backgroundColor:"#5633a8",padding:16,borderRadius:10,marginBottom:15},
-  managerActivityItem:{backgroundColor:"#275bd6",padding:16,borderRadius:10,marginBottom:15},
+  managerItem:{backgroundColor:"#275bd6",padding:16,borderRadius:10,marginBottom:15},
   text:{color:"white",fontWeight:"bold",textAlign:"center"},
   logout:{backgroundColor:"#cc0000",padding:16,borderRadius:10,marginTop:20},
   logoutText:{color:"white",fontWeight:"bold",textAlign:"center"}
