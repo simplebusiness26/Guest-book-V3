@@ -30,6 +30,7 @@ export default function Layout(){
 
       <Stack.Screen name="property/dashboard"/>
       <Stack.Screen name="property/add"/>
+      <Stack.Screen name="property/edit/[id]"/>
       <Stack.Screen name="property/reviews"/>
 
       <Stack.Screen name="activity-clubs/index"/>
