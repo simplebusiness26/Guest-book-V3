@@ -133,9 +133,13 @@ export default function Notifications(){
     const updated=await markRead(notification);
     if(!updated) return;
 
-    if(notification.deep_link){
-      router.push(notification.deep_link);
+    const destination=notification.deep_link?.trim();
+
+    if(!destination || destination==="/notifications"){
+      return;
     }
+
+    router.push(destination);
   }
 
   async function markAllRead(){
