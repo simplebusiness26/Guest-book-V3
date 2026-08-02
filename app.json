@@ -18,6 +18,17 @@
     },
     "ios": {
       "bundleIdentifier": "com.guestbook.app"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Guestbook to scan verified review QR codes",
+          "microphonePermission": "Allow Guestbook to record video reviews",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": true
+        }
+      ]
+    ]
   }
 }

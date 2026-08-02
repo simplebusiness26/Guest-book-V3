@@ -7,15 +7,30 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert
+  Image
 } from "react-native";
 import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {supabase} from "../../../services/supabase";
+import {useFeedback} from "../../../context/FeedbackContext";
+
+const MESSAGE_COLOURS=["#e7f0ff","#f1e8ff","#e4f6ea","#fff0dc","#ffe7ef","#e5f7f5","#f3f0df"];
+
+function colourForUser(userId){
+  const value=String(userId || "member");
+  let hash=0;
+  for(let index=0;index<value.length;index+=1){
+    hash=((hash<<5)-hash)+value.charCodeAt(index);
+    hash|=0;
+  }
+  return MESSAGE_COLOURS[Math.abs(hash)%MESSAGE_COLOURS.length];
+}
 
 export default function ActivityClubMessageBoard(){
   const {id}=useLocalSearchParams();
+  const {showFeedback}=useFeedback();
   const [club,setClub]=useState(null);
   const [messages,setMessages]=useState([]);
+  const [messageProfiles,setMessageProfiles]=useState({});
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
   const [allowed,setAllowed]=useState(false);
@@ -24,11 +39,7 @@ export default function ActivityClubMessageBoard(){
   const [sending,setSending]=useState(false);
   const [error,setError]=useState("");
 
-  useFocusEffect(
-    useCallback(()=>{
-      if(id) loadBoard();
-    },[id])
-  );
+  useFocusEffect(useCallback(()=>{if(id) loadBoard();},[id]));
 
   async function loadBoard(){
     setLoading(true);
@@ -43,16 +54,8 @@ export default function ActivityClubMessageBoard(){
     setUser(currentUser);
 
     const [{data:profileRow},{data:clubRow,error:clubError}]=await Promise.all([
-      supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id",currentUser.id)
-        .single(),
-      supabase
-        .from("activity_clubs")
-        .select("id,name,manager_id")
-        .eq("id",id)
-        .single()
+      supabase.from("profiles").select("id,full_name,profile_photo").eq("id",currentUser.id).single(),
+      supabase.from("activity_clubs").select("id,name,manager_id").eq("id",id).single()
     ]);
 
     if(clubError || !clubRow){
@@ -73,7 +76,6 @@ export default function ActivityClubMessageBoard(){
         .eq("club_id",id)
         .eq("user_id",currentUser.id)
         .maybeSingle();
-
       hasAccess=membership?.status==="approved";
     }
 
@@ -92,13 +94,28 @@ export default function ActivityClubMessageBoard(){
       .order("created_at",{ascending:true});
 
     if(messageError){
-      console.log(messageError);
       setError("Messages could not be loaded.");
       setLoading(false);
       return;
     }
 
-    setMessages(messageRows || []);
+    const rows=messageRows || [];
+    setMessages(rows);
+
+    const userIds=[...new Set(rows.map(item=>item.user_id).filter(Boolean))];
+    if(userIds.length){
+      const {data:profiles}=await supabase
+        .from("profiles")
+        .select("id,full_name,profile_photo")
+        .in("id",userIds);
+
+      const profileMap={};
+      (profiles || []).forEach(item=>{profileMap[item.id]=item;});
+      setMessageProfiles(profileMap);
+    }else{
+      setMessageProfiles({});
+    }
+
     setLoading(false);
   }
 
@@ -120,21 +137,17 @@ export default function ActivityClubMessageBoard(){
     setSending(false);
 
     if(postError){
-      console.log(postError);
-      Alert.alert("Message not sent",postError.message);
+      showFeedback(postError.message,"error","Message not sent");
       return;
     }
 
     setMessage("");
+    showFeedback("Your message was posted to the private board.","success","Message sent");
     await loadBoard();
   }
 
   if(loading){
-    return(
-      <View style={styles.center}>
-        <ActivityIndicator size="large"/>
-      </View>
-    );
+    return <View style={styles.center}><ActivityIndicator size="large"/></View>;
   }
 
   if(error || !allowed){
@@ -143,11 +156,7 @@ export default function ActivityClubMessageBoard(){
         <Text style={styles.lock}>🔒</Text>
         <Text style={styles.errorTitle}>Members only</Text>
         <Text style={styles.errorText}>{error}</Text>
-        {!!club && (
-          <Pressable style={styles.backButton} onPress={()=>router.replace(`/activity-clubs/${club.id}`)}>
-            <Text style={styles.buttonText}>Return to Public Profile</Text>
-          </Pressable>
-        )}
+        {!!club && <Pressable style={styles.backButton} onPress={()=>router.replace(`/activity-clubs/${club.id}`)}><Text style={styles.buttonText}>Return to Public Profile</Text></Pressable>}
       </View>
     );
   }
@@ -160,30 +169,34 @@ export default function ActivityClubMessageBoard(){
       </View>
 
       <ScrollView style={styles.messageList} contentContainerStyle={styles.messageContent}>
-        {messages.length===0 && (
-          <View style={styles.emptyBox}>
-            <Text>No messages yet. Start the conversation.</Text>
-          </View>
-        )}
+        {messages.length===0 && <View style={styles.emptyBox}><Text>No messages yet. Start the conversation.</Text></View>}
 
-        {messages.map(item=>(
-          <View key={item.id} style={styles.messageCard}>
-            <Text style={styles.author}>{item.author_name || "Member"}</Text>
-            <Text style={styles.body}>{item.message}</Text>
-            <Text style={styles.time}>{new Date(item.created_at).toLocaleString()}</Text>
-          </View>
-        ))}
+        {messages.map(item=>{
+          const author=messageProfiles[item.user_id];
+          const authorName=author?.full_name || item.author_name || "Member";
+          const ownMessage=item.user_id===user?.id;
+
+          return(
+            <View key={item.id} style={[styles.messageCard,{backgroundColor:colourForUser(item.user_id)},ownMessage ? styles.ownMessage : styles.otherMessage]}>
+              <View style={styles.authorRow}>
+                {author?.profile_photo ? (
+                  <Image source={{uri:author.profile_photo}} style={styles.avatar}/>
+                ) : (
+                  <View style={styles.avatarFallback}><Text style={styles.avatarInitial}>{authorName.slice(0,1).toUpperCase()}</Text></View>
+                )}
+                <View style={styles.authorTextWrap}>
+                  <Text style={styles.author}>{authorName}</Text>
+                  <Text style={styles.time}>{new Date(item.created_at).toLocaleString()}</Text>
+                </View>
+              </View>
+              <Text style={styles.body}>{item.message}</Text>
+            </View>
+          );
+        })}
       </ScrollView>
 
       <View style={styles.composer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Write a message"
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          maxLength={1000}
-        />
+        <TextInput style={styles.input} placeholder={`Write as ${profile?.full_name || "Member"}`} value={message} onChangeText={setMessage} multiline maxLength={1000}/>
         <Pressable style={styles.sendButton} onPress={postMessage} disabled={sending}>
           <Text style={styles.buttonText}>{sending ? "Sending..." : "Send"}</Text>
         </Pressable>
@@ -193,24 +206,5 @@ export default function ActivityClubMessageBoard(){
 }
 
 const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:"#f5f6f8"},
-  center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},
-  header:{padding:20,backgroundColor:"white",borderBottomWidth:1,borderColor:"#ddd"},
-  title:{fontSize:24,fontWeight:"bold"},
-  subtitle:{color:"#666",marginTop:5},
-  messageList:{flex:1},
-  messageContent:{padding:16,paddingBottom:30},
-  emptyBox:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#ddd"},
-  messageCard:{backgroundColor:"white",padding:15,borderRadius:12,borderWidth:1,borderColor:"#ddd",marginBottom:10},
-  author:{fontWeight:"bold",fontSize:16},
-  body:{fontSize:16,lineHeight:22,marginTop:6},
-  time:{fontSize:11,color:"#777",marginTop:8},
-  composer:{padding:12,backgroundColor:"white",borderTopWidth:1,borderColor:"#ddd"},
-  input:{borderWidth:1,borderColor:"#ccc",borderRadius:12,padding:12,minHeight:54,maxHeight:120},
-  sendButton:{backgroundColor:"#5633a8",padding:14,borderRadius:10,marginTop:8},
-  buttonText:{color:"white",fontWeight:"bold",textAlign:"center"},
-  lock:{fontSize:42},
-  errorTitle:{fontSize:24,fontWeight:"bold",marginTop:12},
-  errorText:{textAlign:"center",color:"#555",lineHeight:22,marginTop:8},
-  backButton:{backgroundColor:"#222",padding:14,borderRadius:10,marginTop:18,width:"100%"}
+  container:{flex:1,backgroundColor:"#f5f6f8"},center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},header:{padding:20,backgroundColor:"white",borderBottomWidth:1,borderColor:"#ddd"},title:{fontSize:24,fontWeight:"bold"},subtitle:{color:"#666",marginTop:5},messageList:{flex:1},messageContent:{padding:16,paddingBottom:30},emptyBox:{backgroundColor:"white",padding:16,borderRadius:12,borderWidth:1,borderColor:"#ddd"},messageCard:{padding:14,borderRadius:16,borderWidth:1,borderColor:"rgba(0,0,0,0.08)",marginBottom:12,maxWidth:"88%"},ownMessage:{alignSelf:"flex-end"},otherMessage:{alignSelf:"flex-start"},authorRow:{flexDirection:"row",alignItems:"center"},avatar:{width:36,height:36,borderRadius:18,backgroundColor:"#ddd"},avatarFallback:{width:36,height:36,borderRadius:18,backgroundColor:"#343a55",alignItems:"center",justifyContent:"center"},avatarInitial:{color:"white",fontWeight:"bold"},authorTextWrap:{marginLeft:9,flex:1},author:{fontWeight:"bold",fontSize:15},body:{fontSize:16,lineHeight:22,marginTop:10},time:{fontSize:10,color:"#666",marginTop:2},composer:{padding:12,backgroundColor:"white",borderTopWidth:1,borderColor:"#ddd"},input:{borderWidth:1,borderColor:"#ccc",borderRadius:12,padding:12,minHeight:54,maxHeight:120},sendButton:{backgroundColor:"#5633a8",padding:14,borderRadius:10,marginTop:8},buttonText:{color:"white",fontWeight:"bold",textAlign:"center"},lock:{fontSize:42},errorTitle:{fontSize:24,fontWeight:"bold",marginTop:12},errorText:{textAlign:"center",color:"#555",lineHeight:22,marginTop:8},backButton:{backgroundColor:"#222",padding:14,borderRadius:10,marginTop:18,width:"100%"}
 });
