@@ -60,8 +60,7 @@ contains("app/_layout.js",[
 
 contains("app/menu.js",[
   'router.push("/feed")',
-  'router.push("/explorers")',
-  'router.push("/moments/create")'
+  'router.push("/explorers")'
 ]);
 
 contains("app/feed.js",[
@@ -69,7 +68,8 @@ contains("app/feed.js",[
   'profile?.account_type!=="explorer"',
   '<LikeButton',
   'type:"video_review"',
-  'router.push(`/moments/${item.item_id}`)'
+  'router.push(`/moments/${item.item_id}`)',
+  'router.push("/moments/create")'
 ]);
 
 contains("app/moments/create.js",[
@@ -102,13 +102,14 @@ contains("components/LikeButton.js",[
 contains("components/CommentThread.js",[
   '.from("social_comments")',
   '.from("social_reports")',
-  'maxLength={1000}'
+  'maxLength={500}',
+  'clean.length>500'
 ]);
 
 contains("app/notifications.js",[
   'Social',
-  'new_follower',
-  'new_moment',
+  'social_follow',
+  'social_moment',
   'social_like',
   'social_comment',
   'deep_link'
@@ -127,15 +128,16 @@ for(const contract of [
   "security invoker",
   "to authenticated",
   "social-media",
-  "explorer_social_cleanup_interactions",
-  "explorer_social_notification"
+  "cleanup_social_interactions",
+  "social_notification_trigger"
 ]){
   check(migrations.includes(contract.toLowerCase()),`migrations: missing security/data contract ${contract}`);
 }
 
 const hardening=read("supabase/migrations/20260802190000_harden_explorer_social_rpc_permissions.sql").toLowerCase();
-check(hardening.includes("revoke execute") && hardening.includes("from anon"),"RPC hardening: anonymous execute revocation missing");
+check(hardening.includes("revoke all") && hardening.includes("from public,anon"),"RPC hardening: anonymous/public execute revocation missing");
 check(hardening.includes("security invoker"),"RPC hardening: SECURITY INVOKER missing");
+check(hardening.includes("to authenticated"),"RPC hardening: authenticated grant missing");
 
 const clubFix=read("supabase/migrations/20260802191500_fix_activity_club_moment_attachments.sql").toLowerCase();
 check(clubFix.includes("open") && clubFix.includes("full"),"Activity Club attachment validation must allow open/full clubs");
