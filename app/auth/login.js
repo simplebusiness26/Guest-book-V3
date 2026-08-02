@@ -190,6 +190,8 @@ export default function Login(){
         style={styles.input}
         placeholder="Email or test alias"
         autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
       />
@@ -201,6 +203,14 @@ export default function Login(){
         value={password}
         onChangeText={setPassword}
       />
+
+      <Pressable
+        style={styles.forgotPassword}
+        onPress={()=>router.push("/auth/forgot-password")}
+        disabled={loading}
+      >
+        <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+      </Pressable>
 
       {error!=="" && <Text style={styles.error}>{error}</Text>}
 
@@ -253,6 +263,8 @@ const styles=StyleSheet.create({
   quickLabel:{color:"white",fontSize:11,marginTop:4,textAlign:"center"},
   aliasHelp:{color:"#59617a",fontSize:12,lineHeight:17,marginTop:12},
   input:{borderWidth:1,borderColor:"#aaa",borderRadius:10,padding:15,marginBottom:15},
+  forgotPassword:{alignSelf:"flex-end",paddingVertical:2,marginTop:-5,marginBottom:16},
+  forgotPasswordText:{color:"#275bd6",fontWeight:"bold"},
   button:{backgroundColor:"#222",padding:15,borderRadius:10,alignItems:"center"},
   disabledButton:{opacity:0.55},
   buttonText:{color:"white",textAlign:"center",fontWeight:"bold"},
