@@ -1,6 +1,6 @@
 import React,{useCallback,useMemo,useState} from "react";
 import {ActivityIndicator,Pressable,RefreshControl,ScrollView,StyleSheet,Text,View} from "react-native";
-import {router,useFocusEffect} from "expo-router";
+import {Link,router,useFocusEffect} from "expo-router";
 import {supabase} from "../../services/supabase";
 import {effectiveLinkupStatus,formatDateTime,statusLabel,timeUntil} from "../../utils/linkups";
 
@@ -73,7 +73,11 @@ export default function LinkupsIndex(){
         <Text style={styles.eyebrow}>MEET LOCALLY</Text>
         <Text style={styles.title}>Link-ups</Text>
         <Text style={styles.subtitle}>Create something to do, join local Explorers and keep the plan together in a private board.</Text>
-        <Pressable style={styles.createButton} onPress={()=>router.push("/linkups/create")}><Text style={styles.createText}>＋ Create Link-up</Text></Pressable>
+        <Link href="/linkups/create" asChild>
+          <Pressable accessibilityRole="link" testID="create-linkup-button" style={styles.createButton}>
+            <Text style={styles.createText}>＋ Create Link-up</Text>
+          </Pressable>
+        </Link>
       </View>
 
       {!!error && <View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text></View>}
