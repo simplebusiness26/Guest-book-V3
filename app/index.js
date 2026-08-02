@@ -11,6 +11,8 @@ import {router} from "expo-router";
 import {supabase} from "../services/supabase";
 import {useNotifications} from "../context/NotificationContext";
 
+const HOME_LAYOUT_VERSION="compact-v2";
+
 export default function Home(){
   const {unreadCount}=useNotifications();
   const [loggedIn,setLoggedIn]=useState(false);
@@ -49,10 +51,6 @@ export default function Home(){
     setLoading(false);
   }
 
-  function openNotifications(){
-    router.push(loggedIn ? "/notifications" : "/auth/login");
-  }
-
   if(loading){
     return(
       <View style={styles.loadingContainer}>
@@ -67,60 +65,91 @@ export default function Home(){
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>Guestbook</Text>
+      <View
+        style={styles.content}
+        testID={`home-${HOME_LAYOUT_VERSION}`}
+      >
+        <View style={styles.brand}>
+          <Text style={styles.title}>Guestbook</Text>
+          <Text style={styles.subtitle}>
+            Discover local places, stays and experiences.
+          </Text>
+        </View>
 
-        <Text style={styles.subtitle}>
-          Discover places, stays and local{"\n"}experiences
-        </Text>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={loggedIn && unreadCount
-            ? `${unreadCount} unread notifications`
-            : "Notifications"
-          }
-          style={styles.notificationsButton}
-          onPress={openNotifications}
-        >
-          <Text style={styles.buttonText}>🔔 Notifications</Text>
-
-          {loggedIn && unreadCount>0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>
-                {unreadCount>99 ? "99+" : unreadCount}
-              </Text>
+        {loggedIn && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={unreadCount
+              ? `${unreadCount} unread notifications`
+              : "Notifications"
+            }
+            style={styles.notificationsButton}
+            onPress={()=>router.push("/notifications")}
+          >
+            <View style={styles.buttonLabelRow}>
+              <Text style={styles.buttonIcon}>🔔</Text>
+              <Text style={styles.secondaryButtonText}>Notifications</Text>
             </View>
-          )}
-        </Pressable>
+
+            {unreadCount>0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount>99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        )}
 
         <Pressable
           style={[styles.actionButton,styles.eventsButton]}
           onPress={()=>router.push("/events")}
         >
-          <Text style={styles.buttonText}>🎉 Explore Events</Text>
+          <Text style={styles.buttonIcon}>🎉</Text>
+          <Text style={styles.primaryButtonText}>Explore Events</Text>
         </Pressable>
 
         <Pressable
           style={[styles.actionButton,styles.mapButton]}
           onPress={()=>router.push("/map")}
         >
-          <Text style={styles.buttonText}>🗺 Explore Map</Text>
+          <Text style={styles.buttonIcon}>🗺️</Text>
+          <Text style={styles.primaryButtonText}>Explore Map</Text>
         </Pressable>
 
-        <Pressable
-          style={[styles.actionButton,styles.menuButton]}
-          onPress={()=>router.push("/menu")}
-        >
-          <Text style={styles.buttonText}>☰ Open Menu</Text>
-        </Pressable>
+        {loggedIn ? (
+          <Pressable
+            style={[styles.actionButton,styles.menuButton]}
+            onPress={()=>router.push("/menu")}
+          >
+            <Text style={styles.buttonIcon}>☰</Text>
+            <Text style={styles.primaryButtonText}>Open Menu</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.authRow}>
+            <Pressable
+              style={[styles.authButton,styles.loginButton]}
+              onPress={()=>router.push("/auth/login")}
+            >
+              <Text style={styles.authButtonText}>Log in</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.authButton,styles.signupButton]}
+              onPress={()=>router.push("/auth/signup")}
+            >
+              <Text style={styles.authButtonText}>Create account</Text>
+            </Pressable>
+          </View>
+        )}
 
         {isAdmin && (
           <Pressable
             style={[styles.actionButton,styles.adminButton]}
             onPress={()=>router.push("/admin/dashboard")}
           >
-            <Text style={styles.buttonText}>⚙️ Admin Dashboard</Text>
+            <Text style={styles.buttonIcon}>⚙️</Text>
+            <Text style={styles.primaryButtonText}>Admin Dashboard</Text>
           </Pressable>
         )}
       </View>
@@ -131,11 +160,11 @@ export default function Home(){
 const styles=StyleSheet.create({
   screen:{
     flex:1,
-    backgroundColor:"#1b1b1d"
+    backgroundColor:"#19191b"
   },
   loadingContainer:{
     flex:1,
-    backgroundColor:"#1b1b1d",
+    backgroundColor:"#19191b",
     alignItems:"center",
     justifyContent:"center"
   },
@@ -143,85 +172,136 @@ const styles=StyleSheet.create({
     flexGrow:1,
     alignItems:"center",
     justifyContent:"center",
-    paddingHorizontal:24,
-    paddingTop:48,
-    paddingBottom:48
+    paddingHorizontal:22,
+    paddingTop:34,
+    paddingBottom:40
   },
   content:{
     width:"100%",
-    maxWidth:620,
-    alignItems:"center"
+    maxWidth:480
+  },
+  brand:{
+    alignItems:"center",
+    marginBottom:36
   },
   title:{
     color:"white",
-    fontSize:58,
-    lineHeight:66,
-    fontWeight:"bold",
-    marginBottom:22,
+    fontSize:44,
+    lineHeight:52,
+    fontWeight:"800",
+    letterSpacing:-1,
     textAlign:"center"
   },
   subtitle:{
-    color:"white",
-    fontSize:22,
-    lineHeight:30,
-    marginBottom:52,
+    color:"#c5c5ca",
+    fontSize:17,
+    lineHeight:24,
+    marginTop:10,
+    maxWidth:330,
     textAlign:"center"
   },
   notificationsButton:{
-    width:"84%",
-    minHeight:84,
-    paddingHorizontal:20,
-    paddingVertical:20,
-    borderRadius:16,
-    marginBottom:28,
-    backgroundColor:"#2a2a2c",
+    width:"100%",
+    minHeight:60,
+    paddingHorizontal:18,
+    paddingVertical:14,
+    borderRadius:14,
+    marginBottom:14,
+    backgroundColor:"#262629",
     borderWidth:1,
-    borderColor:"#555559",
+    borderColor:"#45454a",
     flexDirection:"row",
+    alignItems:"center",
+    justifyContent:"space-between"
+  },
+  buttonLabelRow:{
+    flexDirection:"row",
+    alignItems:"center"
+  },
+  notificationBadge:{
+    minWidth:30,
+    height:30,
+    paddingHorizontal:8,
+    borderRadius:15,
+    backgroundColor:"#b00000",
     alignItems:"center",
     justifyContent:"center"
   },
-  notificationBadge:{
-    minWidth:42,
-    height:42,
-    paddingHorizontal:9,
-    borderRadius:21,
-    backgroundColor:"#b40000",
-    alignItems:"center",
-    justifyContent:"center",
-    marginLeft:14
-  },
   notificationBadgeText:{
     color:"white",
-    fontSize:18,
+    fontSize:14,
     fontWeight:"bold"
   },
   actionButton:{
-    width:"84%",
-    minHeight:84,
-    paddingHorizontal:20,
-    paddingVertical:20,
-    borderRadius:16,
+    width:"100%",
+    minHeight:64,
+    paddingHorizontal:18,
+    paddingVertical:15,
+    borderRadius:14,
+    flexDirection:"row",
     alignItems:"center",
     justifyContent:"center",
-    marginBottom:28
+    marginBottom:14
   },
   eventsButton:{
-    backgroundColor:"#25009f"
+    backgroundColor:"#2410a5"
   },
   mapButton:{
-    backgroundColor:"#0929d4"
+    backgroundColor:"#0d2fc5"
   },
   menuButton:{
-    backgroundColor:"#050505"
+    backgroundColor:"#080809",
+    borderWidth:1,
+    borderColor:"#303034"
   },
   adminButton:{
-    backgroundColor:"#6600cc"
+    backgroundColor:"#5c18a8",
+    marginTop:2
   },
-  buttonText:{
+  buttonIcon:{
+    fontSize:20,
+    marginRight:10
+  },
+  primaryButtonText:{
     color:"white",
-    textAlign:"center",
-    fontWeight:"bold",
-    fontSize:22
+    fontSize:18,
+    fontWeight:"700",
+    textAlign:"center"
+  },
+  secondaryButtonText:{
+    color:"white",
+    fontSize:17,
+    fontWeight:"700"
+  },
+  authRow:{
+    width:"100%",
+    flexDirection:"row",
+    marginTop:2
+  },
+  authButton:{
+    flex:1,
+    minHeight:58,
+    borderRadius:14,
+    alignItems:"center",
+    justifyContent:"center",
+    paddingHorizontal:10
+  },
+  loginButton:{
+    backgroundColor:"#080809",
+    borderWidth:1,
+    borderColor:"#303034",
+    marginRight:7
+  },
+  signupButton:{
+    backgroundColor:"#29292d",
+    borderWidth:1,
+    borderColor:"#48484e",
+    marginLeft:7
+  },
+  authButtonText:{
+    color:"white",
+    fontSize:16,
+    fontWeight:"700",
+    textAlign:"center"
   }
 });
