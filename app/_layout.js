@@ -32,6 +32,9 @@ export default function Layout(){
           <Stack.Screen name="auth/forgot-password"/>
           <Stack.Screen name="auth/update-password"/>
 
+          <Stack.Screen name="events/index"/>
+          <Stack.Screen name="events/[id]"/>
+
           <Stack.Screen name="manager/dashboard"/>
           <Stack.Screen name="manager/requests"/>
           <Stack.Screen name="manager/qr/[type]/[id]"/>
