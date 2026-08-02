@@ -1,14 +1,13 @@
 import React,{useState} from "react";
-
 import {
-View,
-Text,
-TextInput,
-Pressable,
-StyleSheet,
-ActivityIndicator
+  ScrollView,
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator
 } from "react-native";
-
 import {supabase} from "../../services/supabase";
 import {router} from "expo-router";
 
@@ -125,7 +124,11 @@ export default function Login(){
   }
 
   return(
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.title}>Login</Text>
 
       <View style={styles.quickPanel}>
@@ -189,6 +192,7 @@ export default function Login(){
       <TextInput
         style={styles.input}
         placeholder="Email or test alias"
+        placeholderTextColor="#f1f1f3"
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
@@ -199,7 +203,9 @@ export default function Login(){
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#f1f1f3"
         secureTextEntry
+        autoCapitalize="none"
         value={password}
         onChangeText={setPassword}
       />
@@ -230,44 +236,135 @@ export default function Login(){
         style={styles.signup}
         onPress={()=>router.push("/auth/signup")}
       >
-        <Text>Don't have an account? Create one</Text>
+        <Text style={styles.signupText}>Don’t have an account? Create one</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles=StyleSheet.create({
-  container:{padding:30},
-  title:{fontSize:32,fontWeight:"bold",marginBottom:24},
-  quickPanel:{
-    backgroundColor:"#f2f4ff",
-    borderWidth:1,
-    borderColor:"#cbd3ff",
-    borderRadius:14,
-    padding:16,
-    marginBottom:22
+  screen:{
+    flex:1,
+    backgroundColor:"#1b1b1d"
   },
-  quickTitle:{fontSize:19,fontWeight:"bold",color:"#1d2b64"},
-  quickHelp:{color:"#59617a",lineHeight:20,marginTop:5},
-  quickRow:{flexDirection:"row",gap:9,marginTop:14},
+  container:{
+    flexGrow:1,
+    paddingHorizontal:30,
+    paddingTop:56,
+    paddingBottom:52
+  },
+  title:{
+    color:"white",
+    fontSize:46,
+    lineHeight:54,
+    fontWeight:"bold",
+    marginBottom:46
+  },
+  quickPanel:{
+    backgroundColor:"#1d1f2b",
+    borderWidth:1,
+    borderColor:"#4d5686",
+    borderRadius:18,
+    padding:18,
+    marginBottom:44
+  },
+  quickTitle:{
+    fontSize:25,
+    lineHeight:32,
+    fontWeight:"bold",
+    color:"#c8d3ff"
+  },
+  quickHelp:{
+    color:"#c7c7d0",
+    fontSize:17,
+    lineHeight:25,
+    marginTop:7
+  },
+  quickRow:{
+    flexDirection:"row",
+    gap:14,
+    marginTop:20
+  },
   quickButton:{
     flex:1,
-    minHeight:76,
-    backgroundColor:"#1729bd",
-    borderRadius:12,
+    minHeight:116,
+    backgroundColor:"#1300b9",
+    borderRadius:16,
     alignItems:"center",
     justifyContent:"center",
     paddingHorizontal:5
   },
-  quickCode:{color:"white",fontSize:22,fontWeight:"bold"},
-  quickLabel:{color:"white",fontSize:11,marginTop:4,textAlign:"center"},
-  aliasHelp:{color:"#59617a",fontSize:12,lineHeight:17,marginTop:12},
-  input:{borderWidth:1,borderColor:"#aaa",borderRadius:10,padding:15,marginBottom:15},
-  forgotPassword:{alignSelf:"flex-end",paddingVertical:2,marginTop:-5,marginBottom:16},
-  forgotPasswordText:{color:"#275bd6",fontWeight:"bold"},
-  button:{backgroundColor:"#222",padding:15,borderRadius:10,alignItems:"center"},
-  disabledButton:{opacity:0.55},
-  buttonText:{color:"white",textAlign:"center",fontWeight:"bold"},
-  error:{color:"red",marginBottom:15,lineHeight:20},
-  signup:{marginTop:20,alignItems:"center"}
+  quickCode:{
+    color:"white",
+    fontSize:34,
+    fontWeight:"bold"
+  },
+  quickLabel:{
+    color:"white",
+    fontSize:16,
+    marginTop:8,
+    textAlign:"center"
+  },
+  aliasHelp:{
+    color:"#c7c7d0",
+    fontSize:15,
+    lineHeight:23,
+    marginTop:18
+  },
+  input:{
+    color:"white",
+    backgroundColor:"#1b1b1d",
+    borderWidth:1,
+    borderColor:"#555559",
+    borderRadius:16,
+    paddingHorizontal:22,
+    paddingVertical:20,
+    minHeight:78,
+    fontSize:19,
+    marginBottom:28
+  },
+  forgotPassword:{
+    alignSelf:"flex-end",
+    paddingVertical:2,
+    marginTop:-4,
+    marginBottom:34
+  },
+  forgotPasswordText:{
+    color:"#8bb8ff",
+    fontSize:19,
+    fontWeight:"bold"
+  },
+  button:{
+    backgroundColor:"#050505",
+    minHeight:78,
+    paddingHorizontal:20,
+    paddingVertical:20,
+    borderRadius:16,
+    alignItems:"center",
+    justifyContent:"center"
+  },
+  disabledButton:{
+    opacity:0.55
+  },
+  buttonText:{
+    color:"white",
+    textAlign:"center",
+    fontWeight:"bold",
+    fontSize:20
+  },
+  error:{
+    color:"#ff8b94",
+    fontSize:16,
+    marginBottom:20,
+    lineHeight:23
+  },
+  signup:{
+    marginTop:28,
+    alignItems:"center",
+    padding:8
+  },
+  signupText:{
+    color:"white",
+    fontSize:17
+  }
 });
