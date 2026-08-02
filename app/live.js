@@ -13,7 +13,8 @@ const TYPES=[
 export default function LiveDiscovery(){
   const {showFeedback}=useFeedback();
   const [user,setUser]=useState(null);
-  const [area,setArea]=useState("");
+  const [areaDraft,setAreaDraft]=useState("");
+  const [areaFilter,setAreaFilter]=useState("");
   const [latitude,setLatitude]=useState(null);
   const [longitude,setLongitude]=useState(null);
   const [radius,setRadius]=useState(25);
@@ -35,8 +36,12 @@ export default function LiveDiscovery(){
     setUser(currentUser);
     const {data:profile}=await supabase.from("profiles").select("account_type,area").eq("id",currentUser.id).maybeSingle();
     if(profile?.account_type!=="explorer"){setError("Only Explorer accounts can use Live Nearby.");setLoading(false);setRefreshing(false);return;}
-    const nextArea=options.area!==undefined?options.area:(area||profile.area||"");
-    if(!area&&profile.area) setArea(profile.area);
+    const profileArea=profile.area || "";
+    const nextArea=options.area!==undefined?options.area:(areaFilter||profileArea);
+    if(profileArea){
+      setAreaDraft(current=>current||profileArea);
+      setAreaFilter(current=>current||profileArea);
+    }
     await supabase.rpc("refresh_live_system");
     const [{data:discovery,error:discoveryError},{data:checkin}]=await Promise.all([
       supabase.rpc("get_live_discovery",{
@@ -51,11 +56,17 @@ export default function LiveDiscovery(){
     if(discoveryError){setError(discoveryError.message);setItems([]);} else setItems(discovery || []);
     setCurrentCheckin(checkin || null);
     setLoading(false);setRefreshing(false);
-  },[area,latitude,longitude,radius,windowHours]);
+  },[areaFilter,latitude,longitude,radius,windowHours]);
 
   useFocusEffect(useCallback(()=>{load();},[load]));
 
   const filtered=useMemo(()=>type==="all"?items:items.filter(item=>item.item_type===type),[items,type]);
+
+  function applyArea(){
+    const clean=areaDraft.trim();
+    setAreaFilter(clean);
+    load(false,{area:clean});
+  }
 
   async function useLocation(){
     setLocating(true);setError("");
@@ -63,8 +74,8 @@ export default function LiveDiscovery(){
       const permission=await Location.requestForegroundPermissionsAsync();
       if(permission.status!=="granted") throw new Error("Location permission was not granted.");
       const position=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
-      const lat=Number(position.coords.latitude.toFixed(3));
-      const lng=Number(position.coords.longitude.toFixed(3));
+      const lat=Number(position.coords.latitude.toFixed(2));
+      const lng=Number(position.coords.longitude.toFixed(2));
       setLatitude(lat);setLongitude(lng);
       await load(false,{latitude:lat,longitude:lng});
     }catch(locationError){setError(locationError.message || "Location could not be used.");}
@@ -107,7 +118,7 @@ export default function LiveDiscovery(){
       {currentCheckin&&<View style={styles.currentCard}><View style={styles.currentText}><Text style={styles.currentLabel}>YOU ARE CHECKED IN</Text><Text style={styles.currentTitle}>{currentCheckin.place_name}</Text><Text style={styles.currentMeta}>{currentCheckin.activity} · expires {formatDateTime(currentCheckin.expires_at)}</Text></View><Pressable disabled={working} onPress={endCheckin}><Text style={styles.endText}>End</Text></Pressable></View>}
 
       <View style={styles.filtersCard}>
-        <Text style={styles.filterLabel}>Area</Text><View style={styles.areaRow}><TextInput value={area} onChangeText={setArea} onSubmitEditing={()=>load(false,{area})} placeholder="Town or area" placeholderTextColor="#74747d" style={styles.areaInput}/><Pressable style={styles.applyButton} onPress={()=>load(false,{area})}><Text style={styles.applyText}>Apply</Text></Pressable></View>
+        <Text style={styles.filterLabel}>Area</Text><View style={styles.areaRow}><TextInput value={areaDraft} onChangeText={setAreaDraft} onSubmitEditing={applyArea} placeholder="Town or area" placeholderTextColor="#74747d" style={styles.areaInput}/><Pressable style={styles.applyButton} onPress={applyArea}><Text style={styles.applyText}>Apply</Text></Pressable></View>
         <Pressable style={styles.locationButton} disabled={locating} onPress={useLocation}>{locating?<ActivityIndicator color="#d9ceff"/>:<Text style={styles.locationText}>{latitude!=null?"✓ Using approximate location":"Use approximate location"}</Text>}</Pressable>
         <Text style={styles.filterLabel}>Distance</Text><View style={styles.chips}>{[5,15,25,50].map(value=><Pressable key={value} style={[styles.chip,radius===value&&styles.chipActive]} onPress={()=>setRadius(value)}><Text style={[styles.chipText,radius===value&&styles.chipTextActive]}>{value} km</Text></Pressable>)}</View>
         <Text style={styles.filterLabel}>Time window</Text><View style={styles.chips}>{[6,24,72,168].map(value=><Pressable key={value} style={[styles.chip,windowHours===value&&styles.chipActive]} onPress={()=>setWindowHours(value)}><Text style={[styles.chipText,windowHours===value&&styles.chipTextActive]}>{value<24?`${value}h`:value===24?"Today":value===72?"3 days":"7 days"}</Text></Pressable>)}</View>
