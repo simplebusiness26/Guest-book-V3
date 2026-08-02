@@ -22,6 +22,10 @@ export default function Layout(){
           <Stack.Screen name="profile/edit"/>
           <Stack.Screen name="explorers"/>
           <Stack.Screen name="connections/[id]"/>
+          <Stack.Screen name="feed"/>
+          <Stack.Screen name="moments/create"/>
+          <Stack.Screen name="moments/[id]"/>
+          <Stack.Screen name="social-comments/[id]"/>
           <Stack.Screen name="leaderboards"/>
           <Stack.Screen name="notifications"/>
 
