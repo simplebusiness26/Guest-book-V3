@@ -250,7 +250,17 @@ export default function ActivityClubProfile(){
       )}
 
       {!isManager && membership?.status==="rejected" && <View style={styles.rejectedBox}><Text style={styles.pendingTitle}>Application not approved</Text><Text>You can still view the public club profile and can submit another request later.</Text></View>}
-      {!isManager && membership?.status==="removed" && <View style={styles.rejectedBox}><Text style={styles.pendingTitle}>Membership ended</Text><Text>You no longer have private member access, but you can apply to join again.</Text></View>}
+
+      {!isManager && membership?.status==="removed" && (
+        <View style={styles.endedBox}>
+          <View style={styles.endedBadge}>
+            <Text style={styles.endedBadgeText}>🚪 MEMBERSHIP ENDED</Text>
+          </View>
+          <Text style={styles.endedTitle}>Membership ended</Text>
+          <Text style={styles.endedText}>The club manager has ended your membership. You no longer have access to the private message board, but you can apply again.</Text>
+        </View>
+      )}
+
       {canOpenBoard && <Pressable style={styles.boardButton} onPress={()=>router.push(`/activity-clubs/message-board/${club.id}`)}><Text style={styles.buttonText}>Open Members’ Message Board</Text></Pressable>}
 
       <View style={styles.section}>
@@ -314,6 +324,11 @@ const styles=StyleSheet.create({
   approvedTitle:{fontSize:22,fontWeight:"bold",marginTop:14,color:"#174d27"},
   approvedText:{fontSize:16,lineHeight:22,color:"#2e6540",marginTop:7},
   rejectedBox:{backgroundColor:"#ffe7e7",padding:16,borderRadius:12,marginTop:16},
+  endedBox:{backgroundColor:"#eef0f2",padding:16,borderRadius:12,marginTop:16,borderWidth:1,borderColor:"#b7bdc3"},
+  endedBadge:{alignSelf:"flex-start",backgroundColor:"#dde1e4",paddingHorizontal:10,paddingVertical:6,borderRadius:20,marginBottom:12},
+  endedBadgeText:{fontSize:11,fontWeight:"bold",color:"#525a62",letterSpacing:0.4},
+  endedTitle:{fontWeight:"bold",fontSize:17,color:"#343a40",marginBottom:6},
+  endedText:{color:"#59616a",lineHeight:21},
   fullBox:{backgroundColor:"#ffe8e8",padding:16,borderRadius:12,marginTop:16},
   pendingTitle:{fontWeight:"bold",fontSize:17,marginBottom:6},
   section:{marginTop:28},
