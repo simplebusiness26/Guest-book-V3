@@ -39,6 +39,9 @@ jobs:
       - name: Verify Explorer social layer
         run: npm run verify:social
 
+      - name: Verify Link-ups and Live Discovery
+        run: npm run verify:live
+
       - name: Check Expo project
         run: npx expo-doctor
 
