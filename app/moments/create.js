@@ -9,7 +9,7 @@ import {resolveVideoDuration,uploadSocialAsset} from "../../utils/socialMedia";
 const PLACE_TYPES={
   business:{label:"Business",table:"businesses",select:"id,name,image,photos",image:row=>row.image || row.photos?.[0] || null},
   property:{label:"Stay",table:"properties",select:"id,name,photos",image:row=>row.photos?.[0] || null},
-  activity_club:{label:"Club",table:"activity_clubs",select:"id,name,image_url,status",image:row=>row.image_url || null,status:"published"},
+  activity_club:{label:"Club",table:"activity_clubs",select:"id,name,image_url,status",image:row=>row.image_url || null,statuses:["open","full"]},
   event:{label:"Event",table:"events",select:"id,name,image_url,status",image:row=>row.image_url || null,status:"published"}
 };
 
@@ -131,7 +131,8 @@ export default function CreateMoment(){
     setLoadingPlaces(true);
     const config=PLACE_TYPES[type];
     let request=supabase.from(config.table).select(config.select).order("name",{ascending:true}).limit(50);
-    if(config.status) request=request.eq("status",config.status);
+    if(config.statuses) request=request.in("status",config.statuses);
+    else if(config.status) request=request.eq("status",config.status);
     const {data,error:placeError}=await request;
 
     if(placeError){
