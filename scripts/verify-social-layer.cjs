@@ -39,6 +39,7 @@ const requiredFiles=[
   "components/ProfileSocialBar.js",
   "components/LikeButton.js",
   "components/CommentThread.js",
+  "components/MomentMediaPreview.js",
   "utils/socialMedia.js",
   "supabase/migrations/20260802155202_explorer_social_layer.sql",
   "supabase/migrations/20260802183000_explorer_social_interaction_cleanup.sql",
@@ -74,12 +75,33 @@ contains("app/feed.js",[
 
 contains("app/moments/create.js",[
   'profile?.account_type!=="explorer"',
+  'mediaTypes:["images"]',
+  'mediaTypes:["videos"]',
   'videoMaxDuration:30',
   '52_428_800',
   'seconds>30.25',
+  'prepareSocialAsset',
+  'releaseSocialAsset',
+  '<MomentMediaPreview',
   'statuses:["open","full"]',
   'status:"published"',
   '.remove([uploadedPath])'
+]);
+
+contains("components/MomentMediaPreview.js",[
+  'React.createElement("img"',
+  'React.createElement("video"',
+  'controls:true',
+  'playsInline:true',
+  'onError:handleError'
+]);
+
+contains("utils/socialMedia.js",[
+  'URL.createObjectURL(asset.file)',
+  'URL.revokeObjectURL(asset.previewUri)',
+  'asset.file.arrayBuffer()',
+  'asset?.previewUri || asset?.uri',
+  'if(!bytes?.byteLength)'
 ]);
 
 contains("components/FollowButton.js",[
