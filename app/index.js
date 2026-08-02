@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from "react";
 import {
+  ScrollView,
   View,
   Text,
   Pressable,
@@ -48,16 +49,24 @@ export default function Home(){
     setLoading(false);
   }
 
+  function openNotifications(){
+    router.push(loggedIn ? "/notifications" : "/auth/login");
+  }
+
   if(loading){
     return(
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="white"/>
       </View>
     );
   }
 
   return(
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.content}>
         <Text style={styles.title}>Guestbook</Text>
 
@@ -65,27 +74,25 @@ export default function Home(){
           Discover places, stays and local{"\n"}experiences
         </Text>
 
-        {loggedIn && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={unreadCount
-              ? `${unreadCount} unread notifications`
-              : "Notifications"
-            }
-            style={styles.notificationsButton}
-            onPress={()=>router.push("/notifications")}
-          >
-            <Text style={styles.buttonText}>🔔 Notifications</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={loggedIn && unreadCount
+            ? `${unreadCount} unread notifications`
+            : "Notifications"
+          }
+          style={styles.notificationsButton}
+          onPress={openNotifications}
+        >
+          <Text style={styles.buttonText}>🔔 Notifications</Text>
 
-            {unreadCount>0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>
-                  {unreadCount>99 ? "99+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-        )}
+          {loggedIn && unreadCount>0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadCount>99 ? "99+" : unreadCount}
+              </Text>
+            </View>
+          )}
+        </Pressable>
 
         <Pressable
           style={[styles.actionButton,styles.eventsButton]}
@@ -101,30 +108,12 @@ export default function Home(){
           <Text style={styles.buttonText}>🗺 Explore Map</Text>
         </Pressable>
 
-        {loggedIn ? (
-          <Pressable
-            style={[styles.actionButton,styles.menuButton]}
-            onPress={()=>router.push("/menu")}
-          >
-            <Text style={styles.buttonText}>☰ Open Menu</Text>
-          </Pressable>
-        ) : (
-          <>
-            <Pressable
-              style={[styles.actionButton,styles.menuButton]}
-              onPress={()=>router.push("/auth/login")}
-            >
-              <Text style={styles.buttonText}>Login</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.actionButton,styles.menuButton]}
-              onPress={()=>router.push("/auth/signup")}
-            >
-              <Text style={styles.buttonText}>Create Account</Text>
-            </Pressable>
-          </>
-        )}
+        <Pressable
+          style={[styles.actionButton,styles.menuButton]}
+          onPress={()=>router.push("/menu")}
+        >
+          <Text style={styles.buttonText}>☰ Open Menu</Text>
+        </Pressable>
 
         {isAdmin && (
           <Pressable
@@ -135,17 +124,28 @@ export default function Home(){
           </Pressable>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles=StyleSheet.create({
-  container:{
+  screen:{
+    flex:1,
+    backgroundColor:"#1b1b1d"
+  },
+  loadingContainer:{
     flex:1,
     backgroundColor:"#1b1b1d",
     alignItems:"center",
+    justifyContent:"center"
+  },
+  container:{
+    flexGrow:1,
+    alignItems:"center",
     justifyContent:"center",
-    paddingHorizontal:24
+    paddingHorizontal:24,
+    paddingTop:48,
+    paddingBottom:48
   },
   content:{
     width:"100%",
@@ -164,7 +164,7 @@ const styles=StyleSheet.create({
     color:"white",
     fontSize:22,
     lineHeight:30,
-    marginBottom:62,
+    marginBottom:52,
     textAlign:"center"
   },
   notificationsButton:{
