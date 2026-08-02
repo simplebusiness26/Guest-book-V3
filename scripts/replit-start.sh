@@ -4,6 +4,7 @@ set -euo pipefail
 echo "[Guestbook] Stopping stale preview processes..."
 pkill -f "expo start" 2>/dev/null || true
 pkill -f "serve -s dist" 2>/dev/null || true
+pkill -f "serve-preview.cjs" 2>/dev/null || true
 
 rm -rf dist .expo
 
@@ -18,5 +19,5 @@ if [ ! -f dist/index.html ]; then
   exit 1
 fi
 
-echo "[Guestbook] Serving static preview on port 5000..."
-exec npx --yes serve -s dist -l tcp://0.0.0.0:5000
+echo "[Guestbook] Starting no-cache preview server on port 5000..."
+exec node scripts/serve-preview.cjs

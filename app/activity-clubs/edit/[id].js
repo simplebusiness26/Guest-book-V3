@@ -11,25 +11,27 @@ import {
 } from "react-native";
 import {router,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {supabase} from "../../../services/supabase";
+import LocationPicker from "../../../components/LocationPicker";
+import {useFeedback} from "../../../context/FeedbackContext";
 
 export default function EditActivityClub(){
   const {id}=useLocalSearchParams();
+  const {showFeedback}=useFeedback();
   const [name,setName]=useState("");
   const [category,setCategory]=useState("");
   const [description,setDescription]=useState("");
   const [location,setLocation]=useState("");
   const [address,setAddress]=useState("");
+  const [latitude,setLatitude]=useState(null);
+  const [longitude,setLongitude]=useState(null);
   const [price,setPrice]=useState("0");
+  const [memberLimit,setMemberLimit]=useState("20");
   const [status,setStatus]=useState("open");
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
 
-  useFocusEffect(
-    useCallback(()=>{
-      if(id) loadClub();
-    },[id])
-  );
+  useFocusEffect(useCallback(()=>{if(id) loadClub();},[id]));
 
   async function loadClub(){
     setLoading(true);
@@ -37,6 +39,7 @@ export default function EditActivityClub(){
 
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){
+      showFeedback("Please log in before editing an Activity Club.","error","Login required");
       router.replace("/auth/login");
       return;
     }
@@ -49,7 +52,6 @@ export default function EditActivityClub(){
       .single();
 
     if(clubError){
-      console.log(clubError);
       setError("This Activity Club could not be loaded or is not owned by your account.");
       setLoading(false);
       return;
@@ -60,22 +62,44 @@ export default function EditActivityClub(){
     setDescription(data.description || "");
     setLocation(data.location || "");
     setAddress(data.address || "");
+    setLatitude(data.latitude ?? null);
+    setLongitude(data.longitude ?? null);
     setPrice(String(data.price ?? 0));
+    setMemberLimit(String(data.member_limit ?? 20));
     setStatus(data.status || "open");
     setLoading(false);
+  }
+
+  function chooseLocation(value){
+    setLocation(value.location || "");
+    setAddress(value.address);
+    setLatitude(value.latitude);
+    setLongitude(value.longitude);
   }
 
   async function saveClub(){
     if(saving) return;
 
-    if(!name.trim() || !category.trim() || !location.trim()){
-      Alert.alert("Missing information","Name, category and location are required.");
+    if(!name.trim() || !category.trim()){
+      Alert.alert("Missing information","Name and category are required.");
+      return;
+    }
+
+    if(!address || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))){
+      Alert.alert("Choose a location","Search for the club address and select the correct result.");
       return;
     }
 
     const numericPrice=Number(price || 0);
+    const numericLimit=Number(memberLimit);
+
     if(Number.isNaN(numericPrice) || numericPrice<0){
       Alert.alert("Invalid price","Enter a valid price or 0 for a free club.");
+      return;
+    }
+
+    if(!Number.isInteger(numericLimit) || numericLimit<1){
+      Alert.alert("Invalid member limit","Enter the maximum number of approved members.");
       return;
     }
 
@@ -88,9 +112,12 @@ export default function EditActivityClub(){
         name:name.trim(),
         category:category.trim(),
         description:description.trim(),
-        location:location.trim(),
-        address:address.trim(),
+        location,
+        address,
+        latitude:Number(latitude),
+        longitude:Number(longitude),
         price:numericPrice,
+        member_limit:numericLimit,
         status
       })
       .eq("id",id)
@@ -99,63 +126,40 @@ export default function EditActivityClub(){
     setSaving(false);
 
     if(updateError){
-      console.log(updateError);
-      Alert.alert("Club not updated",updateError.message);
+      showFeedback(updateError.message,"error","Club not updated");
       return;
     }
 
-    Alert.alert("Saved","The Activity Club listing has been updated.");
+    showFeedback(`${name.trim()} was updated successfully.`,"success","Activity Club updated");
     router.replace("/manager/dashboard");
   }
 
   if(loading){
-    return(
-      <View style={styles.center}>
-        <ActivityIndicator size="large"/>
-      </View>
-    );
+    return <View style={styles.center}><ActivityIndicator size="large"/></View>;
   }
 
   if(error){
-    return(
-      <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
-      </View>
-    );
+    return <View style={styles.center}><Text style={styles.error}>{error}</Text></View>;
   }
 
   return(
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Edit Activity Club</Text>
-      <Text style={styles.subtitle}>Update the public listing shown to explorers.</Text>
+      <Text style={styles.subtitle}>Update the public listing, location and membership capacity.</Text>
 
       <TextInput style={styles.input} placeholder="Club name *" value={name} onChangeText={setName}/>
       <TextInput style={styles.input} placeholder="Category *" value={category} onChangeText={setCategory}/>
-      <TextInput
-        style={[styles.input,styles.multiline]}
-        placeholder="Description"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-      />
-      <TextInput style={styles.input} placeholder="Town or area *" value={location} onChangeText={setLocation}/>
-      <TextInput style={styles.input} placeholder="Full address" value={address} onChangeText={setAddress}/>
-      <TextInput
-        style={styles.input}
-        placeholder="Price per session"
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="decimal-pad"
-      />
+      <TextInput style={[styles.input,styles.multiline]} placeholder="Description" value={description} onChangeText={setDescription} multiline/>
+
+      <LocationPicker initialAddress={address} initialLocation={location} initialLatitude={latitude} initialLongitude={longitude} onChange={chooseLocation}/>
+
+      <TextInput style={styles.input} placeholder="Price per session" value={price} onChangeText={setPrice} keyboardType="decimal-pad"/>
+      <TextInput style={styles.input} placeholder="Maximum approved members" value={memberLimit} onChangeText={setMemberLimit} keyboardType="number-pad"/>
 
       <Text style={styles.label}>Listing status</Text>
       <View style={styles.statusRow}>
         {["open","full","closed","draft"].map(option=>(
-          <Pressable
-            key={option}
-            style={[styles.statusButton,status===option && styles.selectedStatus]}
-            onPress={()=>setStatus(option)}
-          >
+          <Pressable key={option} style={[styles.statusButton,status===option && styles.selectedStatus]} onPress={()=>setStatus(option)}>
             <Text style={[styles.statusText,status===option && styles.selectedStatusText]}>{option}</Text>
           </Pressable>
         ))}
@@ -169,20 +173,5 @@ export default function EditActivityClub(){
 }
 
 const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:"#f5f7fb"},
-  content:{padding:20,paddingBottom:50},
-  center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},
-  error:{fontSize:17,textAlign:"center"},
-  title:{fontSize:30,fontWeight:"bold"},
-  subtitle:{color:"#666",lineHeight:22,marginTop:7,marginBottom:20},
-  input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",borderRadius:11,padding:14,marginBottom:14},
-  multiline:{minHeight:110,textAlignVertical:"top"},
-  label:{fontWeight:"bold",fontSize:16,marginBottom:10},
-  statusRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20},
-  statusButton:{paddingHorizontal:14,paddingVertical:10,borderRadius:20,borderWidth:1,borderColor:"#aaa",backgroundColor:"white"},
-  selectedStatus:{backgroundColor:"#5633a8",borderColor:"#5633a8"},
-  statusText:{textTransform:"capitalize",fontWeight:"600"},
-  selectedStatusText:{color:"white"},
-  button:{backgroundColor:"#5633a8",padding:16,borderRadius:12,alignItems:"center"},
-  buttonText:{color:"white",fontWeight:"bold"}
+  container:{flex:1,backgroundColor:"#f5f7fb"},content:{padding:20,paddingBottom:50},center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},error:{fontSize:17,textAlign:"center"},title:{fontSize:30,fontWeight:"bold"},subtitle:{color:"#666",lineHeight:22,marginTop:7,marginBottom:20},input:{backgroundColor:"white",borderWidth:1,borderColor:"#ccc",borderRadius:11,padding:14,marginBottom:14},multiline:{minHeight:110,textAlignVertical:"top"},label:{fontWeight:"bold",fontSize:16,marginBottom:10},statusRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20},statusButton:{paddingHorizontal:14,paddingVertical:10,borderRadius:20,borderWidth:1,borderColor:"#aaa",backgroundColor:"white"},selectedStatus:{backgroundColor:"#5633a8",borderColor:"#5633a8"},statusText:{textTransform:"capitalize",fontWeight:"600"},selectedStatusText:{color:"white"},button:{backgroundColor:"#5633a8",padding:16,borderRadius:12,alignItems:"center"},buttonText:{color:"white",fontWeight:"bold"}
 });
