@@ -39,7 +39,7 @@ export default function CreateLinkup(){
       <Text style={styles.title}>Create Link-up</Text>
       <Text style={styles.subtitle}>Invite local Explorers to something simple, public and easy to join.</Text>
       {!!error && <View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text></View>}
-      {allowed && <LinkupForm onSubmit={create} working={working}/>} 
+      {allowed && <LinkupForm onSubmit={create} working={working} titleOnly/>} 
     </ScrollView>
   );
 }
