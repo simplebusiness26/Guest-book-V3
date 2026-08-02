@@ -63,9 +63,6 @@ jobs:
           const audit=JSON.parse(fs.readFileSync("npm-audit-after-safe-fix.json","utf8"));
           console.log("SAFE FIX AUDIT TOTALS",JSON.stringify(audit.metadata?.vulnerabilities || {}));
           NODE
-          echo "SAFE FIX LOCKFILE DIFF START"
-          git diff -- package-lock.json || true
-          echo "SAFE FIX LOCKFILE DIFF END"
           mv package-lock.original.json package-lock.json
 
       - name: Block high severity dependency vulnerabilities
@@ -97,4 +94,68 @@ jobs:
             npm-audit.json
             npm-audit-after-safe-fix.json
             package-lock.safe-fix.json
+          retention-days: 7
+
+  uuid-override-test:
+    name: Patched uuid override test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Generate patched dependency files
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require("fs");
+          const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));
+          pkg.overrides={...(pkg.overrides || {}),uuid:"^11.1.1"};
+          fs.writeFileSync("package.json",JSON.stringify(pkg,null,2)+"\n");
+          NODE
+          npm install --package-lock-only
+          cp package.json package.uuid-override.json
+          cp package-lock.json package-lock.uuid-override.json
+
+      - name: Install patched dependency tree
+        run: npm ci
+
+      - name: Require a clean dependency audit
+        shell: bash
+        run: |
+          npm audit --json > npm-audit-uuid-override.json || true
+          node <<'NODE'
+          const fs=require("fs");
+          const audit=JSON.parse(fs.readFileSync("npm-audit-uuid-override.json","utf8"));
+          const totals=audit.metadata?.vulnerabilities || {};
+          console.log("UUID OVERRIDE AUDIT TOTALS",JSON.stringify(totals));
+          if(Number(totals.total || 0)!==0) process.exit(1);
+          NODE
+
+      - name: Verify Explorer social layer
+        run: npm run verify:social
+
+      - name: Check Expo project
+        run: npx expo-doctor
+
+      - name: Build Expo web app
+        env:
+          CI: true
+        run: npx expo export --platform web --output-dir dist-uuid-override
+
+      - name: Upload patched dependency candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: uuid-override-candidate
+          path: |
+            package.uuid-override.json
+            package-lock.uuid-override.json
+            npm-audit-uuid-override.json
           retention-days: 7
