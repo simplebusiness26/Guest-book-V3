@@ -43,7 +43,9 @@ const requiredFiles=[
   "utils/linkups.js",
   "supabase/migrations/20260802211500_linkups_live_tables.sql",
   "supabase/migrations/20260802211600_linkups_live_actions.sql",
-  "supabase/migrations/20260802211700_linkups_live_discovery.sql"
+  "supabase/migrations/20260802211700_linkups_live_discovery.sql",
+  "supabase/migrations/20260802211800_harden_linkups_live_privacy.sql",
+  "supabase/migrations/20260802211900_linkups_live_performance.sql"
 ];
 
 for(const file of requiredFiles){
@@ -107,11 +109,11 @@ contains("app/linkups/board/[id].js",[
 contains("app/checkins/create.js",[
   'rpc("start_live_checkin"',
   "requestForegroundPermissionsAsync",
-  "toFixed(3)",
   "[30,60,120,240]",
   'p_visibility:visibility',
   'Only use public places',
-  'customActivity'
+  'customActivity',
+  'activity==="Other"?customActivity.trim():activity.trim()'
 ]);
 
 contains("app/live.js",[
@@ -148,7 +150,9 @@ contains("context/NotificationContext.js",[
 const tableMigration=read("supabase/migrations/20260802211500_linkups_live_tables.sql").toLowerCase();
 const actionMigration=read("supabase/migrations/20260802211600_linkups_live_actions.sql").toLowerCase();
 const discoveryMigration=read("supabase/migrations/20260802211700_linkups_live_discovery.sql").toLowerCase();
-const allMigrations=`${tableMigration}\n${actionMigration}\n${discoveryMigration}`;
+const hardeningMigration=read("supabase/migrations/20260802211800_harden_linkups_live_privacy.sql").toLowerCase();
+const performanceMigration=read("supabase/migrations/20260802211900_linkups_live_performance.sql").toLowerCase();
+const allMigrations=`${tableMigration}\n${actionMigration}\n${discoveryMigration}\n${hardeningMigration}\n${performanceMigration}`;
 
 for(const table of [
   "linkups",
@@ -167,16 +171,13 @@ for(const contract of [
   "for update",
   "max_attendees between 2 and 50",
   "live_checkins_one_active_per_user",
-  "round(p_latitude::numeric,3)",
-  "round(p_longitude::numeric,3)",
   "security definer",
   "revoke all",
   "from public,anon",
   "to authenticated",
   "meeting_point_details",
   "linkup_private_select_members",
-  "linkup_messages_select_members",
-  "not public.linkup_users_blocked"
+  "linkup_messages_select_members"
 ]){
   check(allMigrations.includes(contract),`migrations: missing security/data contract ${contract}`);
 }
@@ -210,7 +211,7 @@ for(const rule of [
   "only explorer accounts can join link-ups",
   "only explorer accounts can check in"
 ]){
-  check(actionMigration.includes(rule),`action migration: missing validation ${rule}`);
+  check(allMigrations.includes(rule),`migrations: missing validation ${rule}`);
 }
 
 for(const notification of [
@@ -228,6 +229,25 @@ for(const notification of [
   check(allMigrations.includes(notification),`migrations: notification type ${notification} missing`);
 }
 
+for(const privacyContract of [
+  "create schema if not exists private",
+  "private.can_view_linkup",
+  "not private.linkup_users_blocked",
+  "round(v_latitude::numeric,2)",
+  "round(v_longitude::numeric,2)",
+  "security invoker",
+  "business not found",
+  "activity club not found",
+  "event not found",
+  "daily report limit",
+  "you cannot report your own content or profile",
+  "status=case when a.user_id=v_user then 'left' else 'removed' end"
+]){
+  check(hardeningMigration.includes(privacyContract),`privacy migration: missing contract ${privacyContract}`);
+}
+
+check(performanceMigration.includes("linkup_messages_user_created_idx"),"performance migration: message author index missing");
+check(performanceMigration.includes("not private.linkup_user_is_explorer")&&performanceMigration.includes("'reminders',0"),"performance migration: non-Explorer reminder no-op missing");
 check(discoveryMigration.includes("with items(item_type,item_id,title,subtitle,area"),"discovery migration: explicit CTE column contract missing");
 check(discoveryMigration.includes("'linkup'::text")&&discoveryMigration.includes("'checkin'")&&discoveryMigration.includes("'event'")&&discoveryMigration.includes("'activity'")&&discoveryMigration.includes("'place'"),"discovery migration: one or more discovery item types missing");
 check(discoveryMigration.includes("limit 100"),"discovery migration: response limit missing");
