@@ -67,8 +67,12 @@ export default function CreateCheckin(){
   },[places,query]);
 
   function selectPlace(place){
-    setTargetId(place.id);setPlaceName(place.name);setArea(place.address||place.location||area);
-    if(place.latitude!=null&&place.longitude!=null){setLatitude(Number(Number(place.latitude).toFixed(3)));setLongitude(Number(Number(place.longitude).toFixed(3)));}
+    setTargetId(place.id);
+    setPlaceName(place.name);
+    if(place.latitude!=null&&place.longitude!=null){
+      setLatitude(Number(Number(place.latitude).toFixed(2)));
+      setLongitude(Number(Number(place.longitude).toFixed(2)));
+    }
   }
 
   async function useLocation(){
@@ -77,7 +81,7 @@ export default function CreateCheckin(){
       const permission=await Location.requestForegroundPermissionsAsync();
       if(permission.status!=="granted") throw new Error("Location permission was not granted.");
       const position=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
-      setLatitude(Number(position.coords.latitude.toFixed(3)));setLongitude(Number(position.coords.longitude.toFixed(3)));
+      setLatitude(Number(position.coords.latitude.toFixed(2)));setLongitude(Number(position.coords.longitude.toFixed(2)));
     }catch(locationError){setError(locationError.message || "Location could not be added.");}
     setLocating(false);
   }
@@ -86,7 +90,7 @@ export default function CreateCheckin(){
     if(working||!user) return;
     setError("");
     const selectedActivity=activity==="Other"?customActivity.trim():activity.trim();
-    if(placeName.trim().length<2||area.trim().length<2) return setError("Add the public place and area.");
+    if(placeName.trim().length<2||area.trim().length<2) return setError("Add the public place and broad area, such as a town or neighbourhood.");
     if(selectedActivity.length<2) return setError("Choose what you are doing or enter a custom activity.");
     setWorking(true);
     const {error:checkinError}=await supabase.rpc("start_live_checkin",{
@@ -113,7 +117,8 @@ export default function CreateCheckin(){
       {!["park","public_place"].includes(placeType)&&<View style={styles.placePicker}><TextInput value={query} onChangeText={setQuery} placeholder="Search public places" placeholderTextColor="#74747d" style={styles.input}/>{loadingPlaces&&<ActivityIndicator color="#bca8ff" style={{margin:18}}/>}{!loadingPlaces&&filtered.slice(0,25).map(place=><Pressable key={place.id} style={[styles.placeRow,targetId===place.id&&styles.placeRowActive]} onPress={()=>selectPlace(place)}><View style={styles.placeText}><Text style={styles.placeName}>{place.name}</Text><Text style={styles.placeAddress}>{place.address||place.location||"Public location"}</Text></View><Text style={styles.check}>{targetId===place.id?"✓":""}</Text></Pressable>)}</View>}
 
       <Text style={styles.label}>Public place name</Text><TextInput value={placeName} onChangeText={value=>{setPlaceName(value);setTargetId(null);}} maxLength={120} placeholder="Alexandra Park" placeholderTextColor="#74747d" style={styles.input}/>
-      <Text style={styles.label}>Area</Text><TextInput value={area} onChangeText={setArea} maxLength={80} placeholder="Hastings" placeholderTextColor="#74747d" style={styles.input}/>
+      <Text style={styles.label}>Broad area</Text><TextInput value={area} onChangeText={setArea} maxLength={80} placeholder="Hastings or Central Hastings" placeholderTextColor="#74747d" style={styles.input}/>
+      <Text style={styles.areaHelp}>Use a town or neighbourhood, not a street or private address.</Text>
       <Pressable style={styles.locationButton} disabled={locating} onPress={useLocation}>{locating?<ActivityIndicator color="#d9ceff"/>:<Text style={styles.locationText}>{latitude!=null?"✓ Approximate location added":"Add approximate location"}</Text>}</Pressable>
       {latitude!=null&&<Pressable onPress={()=>{setLatitude(null);setLongitude(null);}}><Text style={styles.removeLocation}>Remove location</Text></Pressable>}
 
@@ -132,5 +137,5 @@ export default function CreateCheckin(){
 }
 
 const styles=StyleSheet.create({
-  screen:{flex:1,backgroundColor:"#18181b"},content:{padding:18,paddingBottom:70},center:{flex:1,backgroundColor:"#18181b",alignItems:"center",justifyContent:"center"},eyebrow:{color:"#a991f0",fontSize:10,fontWeight:"900",letterSpacing:1},title:{color:"white",fontSize:32,fontWeight:"900",marginTop:4},subtitle:{color:"#aaaab3",lineHeight:21,marginTop:7},errorCard:{backgroundColor:"#431f26",borderColor:"#7e3541",borderWidth:1,borderRadius:12,padding:12,marginTop:14},errorText:{color:"#ffc1c9"},label:{color:"white",fontWeight:"900",marginTop:18,marginBottom:8},optional:{color:"#85858e"},input:{backgroundColor:"#242429",borderColor:"#44444c",borderWidth:1,borderRadius:12,color:"white",paddingHorizontal:13,paddingVertical:12},textarea:{minHeight:90},counter:{color:"#777780",fontSize:10,textAlign:"right",marginTop:4},wrap:{flexDirection:"row",flexWrap:"wrap",gap:7},chip:{backgroundColor:"#25252a",borderColor:"#44444c",borderWidth:1,borderRadius:18,paddingHorizontal:11,paddingVertical:8},chipActive:{backgroundColor:"#3212b6",borderColor:"#654ce2"},chipText:{color:"#aaaab3",fontWeight:"800",fontSize:11},chipTextActive:{color:"white"},placePicker:{backgroundColor:"#222226",borderColor:"#414147",borderWidth:1,borderRadius:14,padding:10,marginTop:11},placeRow:{flexDirection:"row",alignItems:"center",padding:9,borderRadius:10,marginTop:4},placeRowActive:{backgroundColor:"#302655"},placeText:{flex:1},placeName:{color:"white",fontWeight:"900"},placeAddress:{color:"#85858e",fontSize:10,marginTop:3},check:{color:"#cdbfff",fontWeight:"900",fontSize:18},locationButton:{backgroundColor:"#29233d",borderColor:"#554777",borderWidth:1,borderRadius:12,padding:13,alignItems:"center",marginTop:10},locationText:{color:"#d9ceff",fontWeight:"900"},removeLocation:{color:"#a899d1",fontWeight:"800",textAlign:"center",paddingVertical:9},durationRow:{flexDirection:"row",gap:7},duration:{flex:1,backgroundColor:"#25252a",borderColor:"#44444c",borderWidth:1,borderRadius:10,padding:11,alignItems:"center"},durationActive:{backgroundColor:"#164c3a",borderColor:"#2f8063"},durationText:{color:"#aaaab3",fontWeight:"900"},durationTextActive:{color:"#c5f5df"},visibilityRow:{flexDirection:"row",gap:9},visibility:{flex:1,backgroundColor:"#25252a",borderColor:"#44444c",borderWidth:1,borderRadius:12,padding:13},visibilityActive:{backgroundColor:"#2d2152",borderColor:"#644be0"},visibilityTitle:{color:"white",fontWeight:"900"},visibilityHint:{color:"#85858e",fontSize:10,marginTop:3},safetyCard:{backgroundColor:"#1f332b",borderColor:"#315e4c",borderWidth:1,borderRadius:13,padding:13,marginTop:20},safetyTitle:{color:"#b9f5d6",fontWeight:"900"},safetyText:{color:"#a7d2ba",fontSize:12,lineHeight:18,marginTop:5},submit:{backgroundColor:"#3212b6",borderRadius:14,padding:16,alignItems:"center",marginTop:20},submitText:{color:"white",fontWeight:"900",fontSize:15},disabled:{opacity:.6}
+  screen:{flex:1,backgroundColor:"#18181b"},content:{padding:18,paddingBottom:70},center:{flex:1,backgroundColor:"#18181b",alignItems:"center",justifyContent:"center"},eyebrow:{color:"#a991f0",fontSize:10,fontWeight:"900",letterSpacing:1},title:{color:"white",fontSize:32,fontWeight:"900",marginTop:4},subtitle:{color:"#aaaab3",lineHeight:21,marginTop:7},errorCard:{backgroundColor:"#431f26",borderColor:"#7e3541",borderWidth:1,borderRadius:12,padding:12,marginTop:14},errorText:{color:"#ffc1c9"},label:{color:"white",fontWeight:"900",marginTop:18,marginBottom:8},optional:{color:"#85858e"},input:{backgroundColor:"#242429",borderColor:"#44444c",borderWidth:1,borderRadius:12,color:"white",paddingHorizontal:13,paddingVertical:12},textarea:{minHeight:90},counter:{color:"#777780",fontSize:10,textAlign:"right",marginTop:4},areaHelp:{color:"#85858e",fontSize:11,lineHeight:16,marginTop:6},wrap:{flexDirection:"row",flexWrap:"wrap",gap:7},chip:{backgroundColor:"#25252a",borderColor:"#44444c",borderWidth:1,borderRadius:18,paddingHorizontal:11,paddingVertical:8},chipActive:{backgroundColor:"#3212b6",borderColor:"#654ce2"},chipText:{color:"#aaaab3",fontWeight:"800",fontSize:11},chipTextActive:{color:"white"},placePicker:{backgroundColor:"#222226",borderColor:"#414147",borderWidth:1,borderRadius:14,padding:10,marginTop:11},placeRow:{flexDirection:"row",alignItems:"center",padding:9,borderRadius:10,marginTop:4},placeRowActive:{backgroundColor:"#302655"},placeText:{flex:1},placeName:{color:"white",fontWeight:"900"},placeAddress:{color:"#85858e",fontSize:10,marginTop:3},check:{color:"#cdbfff",fontWeight:"900",fontSize:18},locationButton:{backgroundColor:"#29233d",borderColor:"#554777",borderWidth:1,borderRadius:12,padding:13,alignItems:"center",marginTop:10},locationText:{color:"#d9ceff",fontWeight:"900"},removeLocation:{color:"#a899d1",fontWeight:"800",textAlign:"center",paddingVertical:9},durationRow:{flexDirection:"row",gap:7},duration:{flex:1,backgroundColor:"#25252a",borderColor:"#44444c",borderWidth:1,borderRadius:10,padding:11,alignItems:"center"},durationActive:{backgroundColor:"#164c3a",borderColor:"#2f8063"},durationText:{color:"#aaaab3",fontWeight:"900"},durationTextActive:{color:"#c5f5df"},visibilityRow:{flexDirection:"row",gap:9},visibility:{flex:1,backgroundColor:"#25252a",borderColor:"#44444c",borderWidth:1,borderRadius:12,padding:13},visibilityActive:{backgroundColor:"#2d2152",borderColor:"#644be0"},visibilityTitle:{color:"white",fontWeight:"900"},visibilityHint:{color:"#85858e",fontSize:10,marginTop:3},safetyCard:{backgroundColor:"#1f332b",borderColor:"#315e4c",borderWidth:1,borderRadius:13,padding:13,marginTop:20},safetyTitle:{color:"#b9f5d6",fontWeight:"900"},safetyText:{color:"#a7d2ba",fontSize:12,lineHeight:18,marginTop:5},submit:{backgroundColor:"#3212b6",borderRadius:14,padding:16,alignItems:"center",marginTop:20},submitText:{color:"white",fontWeight:"900",fontSize:15},disabled:{opacity:.6}
 });
