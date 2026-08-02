@@ -45,6 +45,9 @@ jobs:
       - name: Verify Link-up create navigation
         run: node scripts/verify-linkup-create-navigation.cjs
 
+      - name: Verify title-only Link-up creation
+        run: node scripts/verify-linkup-title-only.cjs
+
       - name: Check Expo project
         run: npx expo-doctor
 
