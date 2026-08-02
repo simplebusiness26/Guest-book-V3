@@ -25,21 +25,61 @@ const mimeTypes={
   ".map":"application/json; charset=utf-8"
 };
 
+const buildingPage=`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="refresh" content="4" />
+  <title>Guestbook is building</title>
+  <style>
+    html,body{height:100%;margin:0;background:#18181b;color:#fff;font-family:Arial,sans-serif}
+    body{display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+    main{width:100%;max-width:420px;text-align:center;background:#222226;border:1px solid #3b3b42;border-radius:20px;padding:28px;box-sizing:border-box}
+    .spinner{width:42px;height:42px;margin:0 auto 20px;border:4px solid #494952;border-top-color:#9b87f5;border-radius:50%;animation:spin 1s linear infinite}
+    h1{font-size:25px;margin:0 0 10px}
+    p{color:#b9b9c1;line-height:1.5;margin:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="spinner"></div>
+    <h1>Guestbook is building</h1>
+    <p>The new preview is being prepared. This page will refresh automatically.</p>
+  </main>
+</body>
+</html>`;
+
+function noCacheHeaders(contentType){
+  return {
+    "Content-Type":contentType,
+    "Cache-Control":"no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma":"no-cache",
+    "Expires":"0"
+  };
+}
+
+function sendBuildingPage(res){
+  res.writeHead(200,noCacheHeaders("text/html; charset=utf-8"));
+  res.end(buildingPage);
+}
+
 function sendFile(res,filePath){
   fs.readFile(filePath,(error,data)=>{
     if(error){
-      res.writeHead(500,{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"});
+      if(!fs.existsSync(indexFile)){
+        sendBuildingPage(res);
+        return;
+      }
+
+      res.writeHead(500,noCacheHeaders("text/plain; charset=utf-8"));
       res.end("Guestbook preview could not read this file.");
       return;
     }
 
     const extension=path.extname(filePath).toLowerCase();
-    res.writeHead(200,{
-      "Content-Type":mimeTypes[extension] || "application/octet-stream",
-      "Cache-Control":"no-store, no-cache, must-revalidate, proxy-revalidate",
-      "Pragma":"no-cache",
-      "Expires":"0"
-    });
+    res.writeHead(200,noCacheHeaders(mimeTypes[extension] || "application/octet-stream"));
     res.end(data);
   });
 }
@@ -50,15 +90,27 @@ const server=http.createServer((req,res)=>{
   try{
     pathname=decodeURIComponent(new URL(req.url,`http://${req.headers.host || "localhost"}`).pathname);
   }catch{
-    res.writeHead(400,{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"});
+    res.writeHead(400,noCacheHeaders("text/plain; charset=utf-8"));
     res.end("Bad request");
+    return;
+  }
+
+  if(pathname==="/health"){
+    const ready=fs.existsSync(indexFile);
+    res.writeHead(200,noCacheHeaders("application/json; charset=utf-8"));
+    res.end(JSON.stringify({status:ready ? "ready" : "building"}));
+    return;
+  }
+
+  if(!fs.existsSync(indexFile)){
+    sendBuildingPage(res);
     return;
   }
 
   const requestedPath=path.resolve(root,`.${pathname}`);
 
   if(requestedPath!==root && !requestedPath.startsWith(`${root}${path.sep}`)){
-    res.writeHead(403,{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"});
+    res.writeHead(403,noCacheHeaders("text/plain; charset=utf-8"));
     res.end("Forbidden");
     return;
   }
@@ -88,6 +140,14 @@ server.on("error",error=>{
 });
 
 server.listen(port,host,()=>{
-  console.log(`[Guestbook] Preview ready at http://${host}:${port}`);
-  console.log("[Guestbook] Browser caching disabled for preview responses.");
+  console.log(`[Guestbook] Preview port opened at http://${host}:${port}`);
+  console.log("[Guestbook] A build page will remain available until dist/index.html is ready.");
 });
+
+function closeServer(){
+  server.close(()=>process.exit(0));
+  setTimeout(()=>process.exit(0),1500).unref();
+}
+
+process.on("SIGINT",closeServer);
+process.on("SIGTERM",closeServer);
