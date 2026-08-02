@@ -8,8 +8,8 @@ MESSAGE="$(git log -1 --pretty=%s 2>/dev/null || echo unknown)"
 echo "[Guestbook] Building branch: ${BRANCH}"
 echo "[Guestbook] Building commit: ${COMMIT} - ${MESSAGE}"
 
-if grep -q 'Create Account' app/index.js || grep -q 'style=\[styles.actionButton,styles.menuButton\].*Login' app/index.js 2>/dev/null; then
-  echo "[Guestbook] ERROR: Old logged-out home layout detected. Pull the latest feature/events-mvp branch before running."
+if ! grep -q 'HOME_LAYOUT_VERSION="compact-v2"' app/index.js 2>/dev/null; then
+  echo "[Guestbook] ERROR: Expected compact-v2 home layout was not found. Pull the latest feature/events-mvp branch before running."
   exit 1
 fi
 
@@ -35,10 +35,12 @@ cat > dist/build-info.json <<EOF
 {
   "branch": "${BRANCH}",
   "commit": "${COMMIT}",
-  "message": "${MESSAGE}"
+  "message": "${MESSAGE}",
+  "homeLayout": "compact-v2"
 }
 EOF
 
 echo "[Guestbook] Preview build verified: ${BRANCH} @ ${COMMIT}"
+echo "[Guestbook] Home layout verified: compact-v2"
 echo "[Guestbook] Starting no-cache preview server on port 5000..."
 exec node scripts/serve-preview.cjs
