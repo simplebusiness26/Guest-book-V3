@@ -21,7 +21,6 @@ const CONFIG={
 export default function VerifiedReviewQR(){
   const params=useLocalSearchParams();
   const code=Array.isArray(params.code) ? params.code[0] : params.code;
-  const [qr,setQr]=useState(null);
   const [listing,setListing]=useState(null);
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
@@ -46,20 +45,16 @@ export default function VerifiedReviewQR(){
     }
     setProfile(profileRow);
 
-    const {data:qrRow,error:qrError}=await supabase
-      .from("listing_qr_codes")
-      .select("*")
-      .eq("code",code)
-      .eq("active",true)
-      .single();
+    const {data:resolved,error:resolveError}=await supabase.rpc("resolve_listing_qr_code",{p_code:code});
+    const qrTarget=resolved?.[0];
 
-    if(qrError || !qrRow){
+    if(resolveError || !qrTarget){
       setError("This Guestbook QR code is invalid or has been disabled.");
       setLoading(false);
       return;
     }
 
-    const config=CONFIG[qrRow.target_type];
+    const config=CONFIG[qrTarget.target_type];
     if(!config){
       setError("This QR code points to an unsupported listing.");
       setLoading(false);
@@ -69,7 +64,7 @@ export default function VerifiedReviewQR(){
     const {data:listingRow,error:listingError}=await supabase
       .from(config.table)
       .select(config.select)
-      .eq("id",qrRow.target_id)
+      .eq("id",qrTarget.target_id)
       .single();
 
     if(listingError || !listingRow){
@@ -78,7 +73,6 @@ export default function VerifiedReviewQR(){
       return;
     }
 
-    setQr(qrRow);
     setListing({...listingRow,_config:config,_image:config.image(listingRow)});
     setLoading(false);
   }
@@ -94,10 +88,7 @@ export default function VerifiedReviewQR(){
       return;
     }
 
-    router.replace({
-      pathname:`/${listing._config.route}/${listing.id}`,
-      params:{qr:code}
-    });
+    router.replace({pathname:`/${listing._config.route}/${listing.id}`,params:{qr:code}});
   }
 
   if(loading){
