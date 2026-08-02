@@ -4,7 +4,8 @@ import {router} from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {supabase} from "../../services/supabase";
 import {useFeedback} from "../../context/FeedbackContext";
-import {resolveVideoDuration,uploadSocialAsset} from "../../utils/socialMedia";
+import MomentMediaPreview from "../../components/MomentMediaPreview";
+import {prepareSocialAsset,releaseSocialAsset,resolveVideoDuration,uploadSocialAsset} from "../../utils/socialMedia";
 
 const PLACE_TYPES={
   business:{label:"Business",table:"businesses",select:"id,name,image,photos",image:row=>row.image || row.photos?.[0] || null},
@@ -29,6 +30,10 @@ export default function CreateMoment(){
   const [error,setError]=useState("");
 
   useEffect(()=>{loadUser();},[]);
+
+  useEffect(()=>{
+    return()=>releaseSocialAsset(asset);
+  },[asset]);
 
   async function loadUser(){
     const {data:{user:currentUser}}=await supabase.auth.getUser();
@@ -61,20 +66,39 @@ export default function CreateMoment(){
     return false;
   }
 
+  function preparePickedAsset(chosen,type){
+    const prepared=prepareSocialAsset(chosen);
+    if(prepared?.previewUri) return prepared;
+
+    releaseSocialAsset(prepared);
+    setError(`Guestbook could not read the selected ${type}. Choose it again or open the app preview in a separate browser tab.`);
+    return null;
+  }
+
+  function clearAsset(){
+    setAsset(null);
+    setMediaType(null);
+    setError("");
+  }
+
   async function pickImage(){
     setError("");
     try{
       if(!(await requestPermission())) return;
       const result=await ImagePicker.launchImageLibraryAsync({
-        mediaTypes:ImagePicker.MediaTypeOptions.Images,
+        mediaTypes:["images"],
         allowsEditing:false,
         allowsMultipleSelection:false,
         quality:0.8
       });
-      if(!result.canceled && result.assets?.[0]){
-        setAsset(result.assets[0]);
-        setMediaType("image");
-      }
+
+      if(result.canceled || !result.assets?.[0]) return;
+
+      const prepared=preparePickedAsset(result.assets[0],"photo");
+      if(!prepared) return;
+
+      setAsset(prepared);
+      setMediaType("image");
     }catch(pickerError){
       console.error(pickerError);
       setError("The photo picker could not return to Guestbook. Open the preview in a separate browser tab and try again.");
@@ -86,7 +110,7 @@ export default function CreateMoment(){
     try{
       if(!(await requestPermission())) return;
       const result=await ImagePicker.launchImageLibraryAsync({
-        mediaTypes:ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes:["videos"],
         allowsEditing:false,
         allowsMultipleSelection:false,
         videoMaxDuration:30,
@@ -100,17 +124,22 @@ export default function CreateMoment(){
         return;
       }
 
-      const seconds=await resolveVideoDuration(chosen);
+      const prepared=preparePickedAsset(chosen,"video");
+      if(!prepared) return;
+
+      const seconds=await resolveVideoDuration(prepared);
       if(!seconds){
+        releaseSocialAsset(prepared);
         setError("Guestbook could not read this video's duration. Choose a different clip.");
         return;
       }
       if(seconds>30.25){
+        releaseSocialAsset(prepared);
         setError("Moments videos must be 30 seconds or shorter.");
         return;
       }
 
-      setAsset({...chosen,resolvedDuration:seconds});
+      setAsset({...prepared,resolvedDuration:seconds});
       setMediaType("video");
     }catch(pickerError){
       console.error(pickerError);
@@ -231,25 +260,24 @@ export default function CreateMoment(){
       {!!error && <View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text></View>}
 
       <View style={styles.mediaCard}>
-        {asset && mediaType==="image" ? (
-          <Image source={{uri:asset.uri}} style={styles.preview}/>
-        ) : asset && mediaType==="video" ? (
-          <View style={styles.videoPreview}>
-            <Text style={styles.videoIcon}>▶</Text>
-            <Text style={styles.videoTitle}>Video selected</Text>
-            <Text style={styles.videoMeta}>{Math.ceil(Number(asset.resolvedDuration || 0))} seconds</Text>
+        {asset && mediaType ? (
+          <View>
+            <MomentMediaPreview asset={asset} mediaType={mediaType} onPreviewError={setError}/>
+            <Pressable style={styles.removeMediaButton} onPress={clearAsset}>
+              <Text style={styles.removeMediaText}>Remove selected media</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.mediaEmpty}>
             <Text style={styles.mediaEmptyIcon}>✨</Text>
             <Text style={styles.mediaEmptyTitle}>Choose your Moment</Text>
-            <Text style={styles.mediaEmptyText}>One photo or one video up to 30 seconds.</Text>
+            <Text style={styles.mediaEmptyText}>Take or choose one photo, or record/select one video up to 30 seconds.</Text>
           </View>
         )}
 
         <View style={styles.mediaButtons}>
-          <Pressable style={styles.mediaButton} onPress={pickImage}><Text style={styles.mediaButtonText}>Choose photo</Text></Pressable>
-          <Pressable style={styles.mediaButton} onPress={pickVideo}><Text style={styles.mediaButtonText}>Choose video</Text></Pressable>
+          <Pressable style={styles.mediaButton} onPress={pickImage}><Text style={styles.mediaButtonText}>Photo / camera</Text></Pressable>
+          <Pressable style={styles.mediaButton} onPress={pickVideo}><Text style={styles.mediaButtonText}>Video / camera</Text></Pressable>
         </View>
       </View>
 
@@ -308,15 +336,12 @@ const styles=StyleSheet.create({
   errorCard:{backgroundColor:"#441f25",borderColor:"#7f3541",borderWidth:1,borderRadius:13,padding:13,marginBottom:14},
   errorText:{color:"#ffbdc7",lineHeight:19},
   mediaCard:{backgroundColor:"#222226",borderColor:"#414147",borderWidth:1,borderRadius:17,padding:12},
-  preview:{width:"100%",height:300,borderRadius:13,backgroundColor:"#303036"},
-  videoPreview:{height:230,borderRadius:13,backgroundColor:"#101013",alignItems:"center",justifyContent:"center"},
-  videoIcon:{color:"white",fontSize:40},
-  videoTitle:{color:"white",fontSize:18,fontWeight:"900",marginTop:9},
-  videoMeta:{color:"#a0a0aa",marginTop:4},
   mediaEmpty:{height:220,borderRadius:13,backgroundColor:"#29292e",alignItems:"center",justifyContent:"center",padding:22},
   mediaEmptyIcon:{fontSize:36},
   mediaEmptyTitle:{color:"white",fontSize:19,fontWeight:"900",marginTop:9},
-  mediaEmptyText:{color:"#9d9da6",textAlign:"center",marginTop:6},
+  mediaEmptyText:{color:"#9d9da6",textAlign:"center",marginTop:6,lineHeight:19},
+  removeMediaButton:{alignSelf:"center",paddingHorizontal:12,paddingVertical:9,marginTop:5},
+  removeMediaText:{color:"#c7b9ef",fontSize:12,fontWeight:"900"},
   mediaButtons:{flexDirection:"row",gap:10,marginTop:11},
   mediaButton:{flex:1,backgroundColor:"#302655",borderColor:"#5d4b91",borderWidth:1,borderRadius:11,paddingVertical:12,alignItems:"center"},
   mediaButtonText:{color:"#e2d9ff",fontWeight:"900"},
