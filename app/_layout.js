@@ -29,6 +29,8 @@ export default function Layout(){
           <Stack.Screen name="auth/signup"/>
           <Stack.Screen name="auth/login"/>
           <Stack.Screen name="auth/verify"/>
+          <Stack.Screen name="auth/forgot-password"/>
+          <Stack.Screen name="auth/update-password"/>
 
           <Stack.Screen name="manager/dashboard"/>
           <Stack.Screen name="manager/requests"/>
