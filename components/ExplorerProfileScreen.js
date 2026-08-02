@@ -6,11 +6,11 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Image,
-  Linking
+  Image
 } from "react-native";
 import {router,useFocusEffect} from "expo-router";
 import {supabase} from "../services/supabase";
+import LikeButton from "./LikeButton";
 
 function dateLabel(value){
   if(!value) return "";
@@ -21,11 +21,11 @@ function dateLabel(value){
   });
 }
 
-function listingRoute(review){
-  if(review.target_type==="business") return `/business/${review.target_id}`;
-  if(review.target_type==="property") return `/property/${review.target_id}`;
-  if(review.target_type==="activity_club") return `/activity-clubs/${review.target_id}`;
-  if(review.target_type==="event") return `/events/${review.target_id}`;
+function listingRoute(item){
+  if(item.target_type==="business") return `/business/${item.target_id}`;
+  if(item.target_type==="property") return `/property/${item.target_id}`;
+  if(item.target_type==="activity_club") return `/activity-clubs/${item.target_id}`;
+  if(item.target_type==="event") return `/events/${item.target_id}`;
   return "/map";
 }
 
@@ -61,11 +61,13 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
   const [reviews,setReviews]=useState([]);
   const [media,setMedia]=useState([]);
   const [favourites,setFavourites]=useState([]);
+  const [moments,setMoments]=useState([]);
+  const [reviewLikes,setReviewLikes]=useState({});
   const [currentUser,setCurrentUser]=useState(null);
   const [monthlyNationalRank,setMonthlyNationalRank]=useState(null);
   const [monthlyLocalRank,setMonthlyLocalRank]=useState(null);
   const [sort,setSort]=useState("recent");
-  const [videoTab,setVideoTab]=useState("videos");
+  const [mediaTab,setMediaTab]=useState("videos");
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
 
@@ -88,11 +90,12 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
       return;
     }
 
-    const [profileResult,statsResult,reviewsResult,favouritesResult]=await Promise.all([
+    const [profileResult,statsResult,reviewsResult,favouritesResult,momentsResult]=await Promise.all([
       supabase.from("profiles").select("id,full_name,email,phone,profile_photo,bio,account_type,area,show_area,leaderboard_opt_in,is_admin").eq("id",id).single(),
       supabase.from("explorer_profile_stats").select("*").eq("user_id",id).maybeSingle(),
       supabase.from("explorer_reviews").select("*").eq("user_id",id).eq("status","published").order("created_at",{ascending:false}),
-      supabase.from("explorer_favourites").select("*").eq("user_id",id).eq("is_public",true).order("sort_order",{ascending:true}).order("created_at",{ascending:false})
+      supabase.from("explorer_favourites").select("*").eq("user_id",id).eq("is_public",true).order("sort_order",{ascending:true}).order("created_at",{ascending:false}),
+      supabase.from("explorer_moments").select("*").eq("user_id",id).eq("status","published").order("created_at",{ascending:false}).limit(60)
     ]);
 
     if(profileResult.error || !profileResult.data){
@@ -103,21 +106,30 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
 
     const reviewRows=reviewsResult.data || [];
     let mediaRows=[];
+    let likeMap={};
+
     if(reviewRows.length){
-      const {data}=await supabase
-        .from("review_media")
-        .select("*")
-        .in("review_id",reviewRows.map(item=>item.id))
-        .eq("moderation_status","published")
-        .order("sort_order",{ascending:true});
-      mediaRows=data || [];
+      const ids=reviewRows.map(item=>item.id);
+      const [mediaResult,likesResult]=await Promise.all([
+        supabase.from("review_media").select("*").in("review_id",ids).eq("moderation_status","published").order("sort_order",{ascending:true}),
+        supabase.from("social_likes").select("target_id,user_id").eq("target_type","review").in("target_id",ids)
+      ]);
+
+      mediaRows=mediaResult.data || [];
+      (likesResult.data || []).forEach(item=>{
+        if(!likeMap[item.target_id]) likeMap[item.target_id]={count:0,liked:false};
+        likeMap[item.target_id].count+=1;
+        if(user && item.user_id===user.id) likeMap[item.target_id].liked=true;
+      });
     }
 
     setProfile(profileResult.data);
     setStats(statsResult.data || null);
     setReviews(reviewRows);
     setMedia(mediaRows);
+    setReviewLikes(likeMap);
     setFavourites(favouritesResult.data || []);
+    setMoments(momentsResult.data || []);
 
     if(profileResult.data.account_type==="explorer" && profileResult.data.leaderboard_opt_in!==false){
       const nationalResult=await supabase.rpc("get_explorer_leaderboard",{
@@ -218,17 +230,18 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
         {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
         {isOwner && (
-          <Pressable style={styles.editProfileButton} onPress={()=>router.push("/profile/edit")}>
-            <Text style={styles.editProfileText}>Edit profile</Text>
-          </Pressable>
+          <View style={styles.ownerActions}>
+            <Pressable style={styles.editProfileButton} onPress={()=>router.push("/profile/edit")}><Text style={styles.editProfileText}>Edit profile</Text></Pressable>
+            <Pressable style={styles.newMomentButton} onPress={()=>router.push("/moments/create")}><Text style={styles.newMomentText}>＋ New Moment</Text></Pressable>
+          </View>
         )}
       </View>
 
       <View style={styles.statsGrid}>
         <StatCard label="Reviews" value={stats?.review_count || 0}/>
         <StatCard label="Verified" value={stats?.verified_review_count || 0}/>
-        <StatCard label="Images" value={stats?.image_review_count || 0}/>
         <StatCard label="Videos" value={stats?.video_review_count || 0} accent/>
+        <StatCard label="Moments" value={moments.length} accent/>
       </View>
 
       <Pressable style={styles.rankCard} onPress={()=>router.push("/leaderboards")}>
@@ -242,14 +255,11 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
         </View>
       </Pressable>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Favourite places</Text>
-        <Text style={styles.sectionCount}>{favourites.length}</Text>
-      </View>
+      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Favourite places</Text><Text style={styles.sectionCount}>{favourites.length}</Text></View>
       {favourites.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
           {favourites.map(item=>(
-            <Pressable key={item.id} style={styles.favouriteCard} onPress={()=>router.push(listingRoute({target_type:item.target_type,target_id:item.target_id}))}>
+            <Pressable key={item.id} style={styles.favouriteCard} onPress={()=>router.push(listingRoute(item))}>
               {item.target_image_url ? <Image source={{uri:item.target_image_url}} style={styles.favouriteImage}/> : <View style={styles.favouriteFallback}><Text style={styles.favouriteEmoji}>📍</Text></View>}
               <Text style={styles.favouriteName} numberOfLines={2}>{item.target_name}</Text>
               <Text style={styles.favouriteType}>{item.target_type.replace("_"," ")}</Text>
@@ -258,10 +268,7 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
         </ScrollView>
       ) : <EmptyCard>No favourite places have been shared yet.</EmptyCard>}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Review gallery</Text>
-        <Text style={styles.sectionCount}>{imageMedia.length}</Text>
-      </View>
+      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Review gallery</Text><Text style={styles.sectionCount}>{imageMedia.length}</Text></View>
       {imageMedia.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
           {imageMedia.map(item=>{
@@ -291,6 +298,7 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
         const reviewMedia=mediaByReview[review.id] || [];
         const photos=reviewMedia.filter(item=>item.media_type==="image");
         const video=reviewMedia.find(item=>item.media_type==="video");
+        const likes=reviewLikes[review.id] || {count:0,liked:false};
         return(
           <View key={review.id} style={styles.reviewCard}>
             <Pressable onPress={()=>router.push(listingRoute(review))}>
@@ -306,7 +314,6 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
             <Text style={styles.reviewStars}>{"★".repeat(review.rating)}<Text style={styles.emptyStars}>{"★".repeat(5-review.rating)}</Text></Text>
             {!!review.title && <Text style={styles.reviewTitle}>{review.title}</Text>}
             <Text style={styles.reviewComment}>{review.comment}</Text>
-
             {!!review.verified_qr && <View style={styles.verifiedBadge}><Text style={styles.verifiedText}>✓ VERIFIED ON-SITE REVIEW</Text></View>}
 
             {!!photos.length && (
@@ -316,49 +323,69 @@ export default function ExplorerProfileScreen({profileId,ownProfile=false}){
             )}
 
             {!!video && (
-              <Pressable style={styles.videoButton} onPress={()=>Linking.openURL(video.media_url)}>
+              <Pressable style={styles.videoButton} onPress={()=>router.push(`/social-comments/${review.id}`)}>
                 <Text style={styles.videoButtonIcon}>▶</Text>
                 <View style={{flex:1}}>
-                  <Text style={styles.videoButtonTitle}>Play video review</Text>
-                  <Text style={styles.videoButtonText}>{Math.ceil(Number(video.duration_seconds || 0)) || "≤30"} seconds</Text>
+                  <Text style={styles.videoButtonTitle}>Open video review</Text>
+                  <Text style={styles.videoButtonText}>Watch, like and join the discussion</Text>
                 </View>
               </Pressable>
             )}
+
+            <View style={styles.reviewActions}>
+              <LikeButton targetType="review" targetId={review.id} initialCount={likes.count} initialLiked={likes.liked}/>
+              {!!video && <Pressable style={styles.commentsLink} onPress={()=>router.push(`/social-comments/${review.id}`)}><Text style={styles.commentsLinkText}>💬 Comments</Text></Pressable>}
+            </View>
           </View>
         );
       }) : <EmptyCard>No reviews have been published yet.</EmptyCard>}
 
-      <View style={styles.videoTabRow}>
-        <Pressable style={[styles.videoTab,videoTab==="videos" && styles.videoTabActive]} onPress={()=>setVideoTab("videos")}>
-          <Text style={[styles.videoTabText,videoTab==="videos" && styles.videoTabTextActive]}>Videos</Text>
+      <View style={styles.mediaTabRow}>
+        <Pressable style={[styles.mediaTab,mediaTab==="videos" && styles.mediaTabActive]} onPress={()=>setMediaTab("videos")}>
+          <Text style={[styles.mediaTabText,mediaTab==="videos" && styles.mediaTabTextActive]}>Videos</Text>
         </Pressable>
-        <Pressable style={[styles.videoTab,videoTab==="moments" && styles.videoTabActive]} onPress={()=>setVideoTab("moments")}>
-          <Text style={[styles.videoTabText,videoTab==="moments" && styles.videoTabTextActive]}>Moments</Text>
+        <Pressable style={[styles.mediaTab,mediaTab==="moments" && styles.mediaTabActive]} onPress={()=>setMediaTab("moments")}>
+          <Text style={[styles.mediaTabText,mediaTab==="moments" && styles.mediaTabTextActive]}>Moments</Text>
         </Pressable>
       </View>
 
-      {videoTab==="videos" ? (
+      {mediaTab==="videos" ? (
         videoMedia.length ? videoMedia.map(item=>{
           const review=reviews.find(row=>row.id===item.review_id);
           return(
-            <Pressable key={item.id} style={styles.videoCard} onPress={()=>Linking.openURL(item.media_url)}>
+            <Pressable key={item.id} style={styles.videoCard} onPress={()=>review && router.push(`/social-comments/${review.id}`)}>
               <View style={styles.videoPoster}>
-                {item.thumbnail_url ? <Image source={{uri:item.thumbnail_url}} style={styles.videoPosterImage}/> : <Text style={styles.largePlay}>▶</Text>}
+                {item.thumbnail_url || review?.target_image_url ? <Image source={{uri:item.thumbnail_url || review?.target_image_url}} style={styles.videoPosterImage}/> : <Text style={styles.largePlay}>▶</Text>}
+                <View style={styles.playOverlay}><Text style={styles.playOverlayText}>▶</Text></View>
               </View>
               <View style={styles.videoCardBody}>
                 <Text style={styles.videoCardTitle}>{review?.title || review?.target_name || "Video review"}</Text>
                 <Text style={styles.videoCardPlace}>{review?.target_name}</Text>
-                <Text style={styles.videoCardMeta}>{review ? `${review.rating}/5 · ${dateLabel(review.created_at)}` : "Video review"}</Text>
+                <Text style={styles.videoCardMeta}>{review ? `${review.rating}/5 · ${dateLabel(review.created_at)} · Open comments` : "Video review"}</Text>
               </View>
             </Pressable>
           );
         }) : <EmptyCard>Video reviews will appear here.</EmptyCard>
       ) : (
-        <View style={styles.momentsCard}>
-          <Text style={styles.momentsIcon}>✨</Text>
-          <Text style={styles.momentsTitle}>Moments are coming later</Text>
-          <Text style={styles.momentsText}>This tab is ready for the future Moments feature without changing the profile layout.</Text>
-        </View>
+        <>
+          {isOwner && <Pressable style={styles.createMomentWide} onPress={()=>router.push("/moments/create")}><Text style={styles.createMomentWideText}>＋ Share a new Moment</Text></Pressable>}
+          {moments.length ? (
+            <View style={styles.momentGrid}>
+              {moments.map(moment=>(
+                <Pressable key={moment.id} style={styles.momentCard} onPress={()=>router.push(`/moments/${moment.id}`)}>
+                  <View style={styles.momentMediaWrap}>
+                    <Image source={{uri:moment.thumbnail_url || moment.target_image_url || moment.media_url}} style={styles.momentImage}/>
+                    {moment.media_type==="video" && <View style={styles.momentPlay}><Text style={styles.momentPlayText}>▶</Text></View>}
+                  </View>
+                  <View style={styles.momentBody}>
+                    <Text style={styles.momentCaption} numberOfLines={2}>{moment.caption || "Moment"}</Text>
+                    <Text style={styles.momentMeta} numberOfLines={1}>{moment.target_name || dateLabel(moment.created_at)}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : <EmptyCard>{isOwner ? "Share your first Moment from the button above." : "No Moments have been shared yet."}</EmptyCard>}
+        </>
       )}
 
       {isOwner && <Pressable style={styles.logoutButton} onPress={logout}><Text style={styles.primaryButtonText}>Logout</Text></Pressable>}
@@ -386,8 +413,11 @@ const styles=StyleSheet.create({
   area:{color:"#c5b6f5",fontSize:15,marginTop:6},
   bio:{color:"#b9b9c1",fontSize:15,lineHeight:22,textAlign:"center",marginTop:10,maxWidth:520},
   managerBadge:{backgroundColor:"#163d70",color:"#a9d0ff",paddingHorizontal:12,paddingVertical:6,borderRadius:20,overflow:"hidden",fontWeight:"900",fontSize:11,marginTop:9},
-  editProfileButton:{marginTop:15,borderColor:"#6852a5",borderWidth:1,borderRadius:11,paddingHorizontal:20,paddingVertical:10},
+  ownerActions:{flexDirection:"row",gap:9,marginTop:15},
+  editProfileButton:{borderColor:"#6852a5",borderWidth:1,borderRadius:11,paddingHorizontal:16,paddingVertical:10},
   editProfileText:{color:"#d9cefa",fontWeight:"900"},
+  newMomentButton:{backgroundColor:"#3212b6",borderRadius:11,paddingHorizontal:16,paddingVertical:10},
+  newMomentText:{color:"white",fontWeight:"900"},
   statsGrid:{flexDirection:"row",flexWrap:"wrap",gap:10,marginTop:13},
   statCard:{width:"48%",flexGrow:1,backgroundColor:"#222226",borderColor:"#3f3f45",borderWidth:1,borderRadius:14,padding:15,alignItems:"center"},
   statCardAccent:{backgroundColor:"#271e42",borderColor:"#594392"},
@@ -440,23 +470,35 @@ const styles=StyleSheet.create({
   videoButtonIcon:{color:"white",fontSize:20,marginRight:12},
   videoButtonTitle:{color:"white",fontWeight:"900"},
   videoButtonText:{color:"#a7a0b8",fontSize:11,marginTop:2},
-  videoTabRow:{flexDirection:"row",backgroundColor:"#222226",borderRadius:13,padding:4,marginTop:28,marginBottom:12},
-  videoTab:{flex:1,padding:11,borderRadius:10,alignItems:"center"},
-  videoTabActive:{backgroundColor:"#3212b6"},
-  videoTabText:{color:"#9999a2",fontWeight:"900"},
-  videoTabTextActive:{color:"white"},
+  reviewActions:{flexDirection:"row",alignItems:"center",gap:9,marginTop:13},
+  commentsLink:{paddingHorizontal:11,paddingVertical:9},
+  commentsLinkText:{color:"#bca8ff",fontWeight:"900",fontSize:12},
+  mediaTabRow:{flexDirection:"row",backgroundColor:"#222226",borderRadius:13,padding:4,marginTop:28,marginBottom:12},
+  mediaTab:{flex:1,padding:11,borderRadius:10,alignItems:"center"},
+  mediaTabActive:{backgroundColor:"#3212b6"},
+  mediaTabText:{color:"#9999a2",fontWeight:"900"},
+  mediaTabTextActive:{color:"white"},
   videoCard:{backgroundColor:"#222226",borderColor:"#414147",borderWidth:1,borderRadius:15,overflow:"hidden",marginBottom:12},
   videoPoster:{height:165,backgroundColor:"#0d0d0f",alignItems:"center",justifyContent:"center"},
   videoPosterImage:{width:"100%",height:"100%"},
   largePlay:{color:"white",fontSize:42},
+  playOverlay:{position:"absolute",width:52,height:52,borderRadius:26,backgroundColor:"rgba(0,0,0,0.72)",alignItems:"center",justifyContent:"center"},
+  playOverlayText:{color:"white",fontSize:20,marginLeft:3},
   videoCardBody:{padding:14},
   videoCardTitle:{color:"white",fontSize:18,fontWeight:"900"},
   videoCardPlace:{color:"#c0b0f2",fontWeight:"700",marginTop:4},
   videoCardMeta:{color:"#92929b",fontSize:12,marginTop:5},
-  momentsCard:{backgroundColor:"#221d30",borderColor:"#50416e",borderWidth:1,borderRadius:16,padding:25,alignItems:"center"},
-  momentsIcon:{fontSize:35},
-  momentsTitle:{color:"white",fontSize:19,fontWeight:"900",marginTop:8},
-  momentsText:{color:"#aaa2b9",lineHeight:21,textAlign:"center",marginTop:7},
+  createMomentWide:{backgroundColor:"#3212b6",borderRadius:13,paddingVertical:14,alignItems:"center",marginBottom:12},
+  createMomentWideText:{color:"white",fontWeight:"900"},
+  momentGrid:{flexDirection:"row",flexWrap:"wrap",gap:10},
+  momentCard:{width:"48%",flexGrow:1,backgroundColor:"#222226",borderColor:"#414147",borderWidth:1,borderRadius:14,overflow:"hidden"},
+  momentMediaWrap:{height:170,backgroundColor:"#0d0d0f",alignItems:"center",justifyContent:"center"},
+  momentImage:{width:"100%",height:"100%"},
+  momentPlay:{position:"absolute",width:44,height:44,borderRadius:22,backgroundColor:"rgba(0,0,0,0.72)",alignItems:"center",justifyContent:"center"},
+  momentPlayText:{color:"white",fontSize:17,marginLeft:3},
+  momentBody:{padding:10},
+  momentCaption:{color:"white",fontSize:13,fontWeight:"800",lineHeight:18},
+  momentMeta:{color:"#92929b",fontSize:10,marginTop:5},
   primaryButton:{backgroundColor:"#3212b6",padding:16,borderRadius:12,marginTop:15},
   darkButton:{backgroundColor:"#050505",padding:16,borderRadius:12,marginTop:12},
   logoutButton:{backgroundColor:"#8f171d",padding:16,borderRadius:12,marginTop:25},
