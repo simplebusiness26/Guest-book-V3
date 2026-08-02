@@ -13,7 +13,19 @@ import {supabase} from "../../services/supabase";
 
 function getResetRedirectUrl(){
   if(Platform.OS==="web" && typeof window!=="undefined"){
-    return `${window.location.origin}/auth/update-password`;
+    const configuredUrl=process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/,"");
+
+    if(configuredUrl){
+      return `${configuredUrl}/auth/update-password`;
+    }
+
+    const {protocol,hostname}=window.location;
+    const isLocalHost=hostname==="localhost" || hostname==="127.0.0.1";
+    const publicOrigin=isLocalHost
+      ? window.location.origin
+      : `${protocol}//${hostname}`;
+
+    return `${publicOrigin}/auth/update-password`;
   }
 
   return undefined;
