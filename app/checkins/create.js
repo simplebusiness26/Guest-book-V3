@@ -24,6 +24,7 @@ export default function CreateCheckin(){
   const [latitude,setLatitude]=useState(null);
   const [longitude,setLongitude]=useState(null);
   const [activity,setActivity]=useState("Walking");
+  const [customActivity,setCustomActivity]=useState("");
   const [message,setMessage]=useState("");
   const [visibility,setVisibility]=useState("public");
   const [minutes,setMinutes]=useState(120);
@@ -84,12 +85,13 @@ export default function CreateCheckin(){
   async function publish(){
     if(working||!user) return;
     setError("");
+    const selectedActivity=activity==="Other"?customActivity.trim():activity.trim();
     if(placeName.trim().length<2||area.trim().length<2) return setError("Add the public place and area.");
-    if(activity.trim().length<2) return setError("Choose what you are doing.");
+    if(selectedActivity.length<2) return setError("Choose what you are doing or enter a custom activity.");
     setWorking(true);
     const {error:checkinError}=await supabase.rpc("start_live_checkin",{
       p_place_type:placeType,p_target_id:targetId,p_place_name:placeName.trim(),p_area:area.trim(),
-      p_latitude:latitude,p_longitude:longitude,p_activity:activity.trim(),p_message:message.trim(),
+      p_latitude:latitude,p_longitude:longitude,p_activity:selectedActivity,p_message:message.trim(),
       p_visibility:visibility,p_minutes:minutes
     });
     setWorking(false);
@@ -116,7 +118,7 @@ export default function CreateCheckin(){
       {latitude!=null&&<Pressable onPress={()=>{setLatitude(null);setLongitude(null);}}><Text style={styles.removeLocation}>Remove location</Text></Pressable>}
 
       <Text style={styles.label}>What are you doing?</Text><View style={styles.wrap}>{ACTIVITIES.map(item=><Pressable key={item} style={[styles.chip,activity===item&&styles.chipActive]} onPress={()=>setActivity(item)}><Text style={[styles.chipText,activity===item&&styles.chipTextActive]}>{item}</Text></Pressable>)}</View>
-      {activity==="Other"&&<TextInput value={activity} onChangeText={setActivity} maxLength={80} placeholder="Your activity" placeholderTextColor="#74747d" style={[styles.input,{marginTop:9}]}/>} 
+      {activity==="Other"&&<TextInput value={customActivity} onChangeText={setCustomActivity} maxLength={80} placeholder="Your activity" placeholderTextColor="#74747d" style={[styles.input,{marginTop:9}]}/>} 
 
       <Text style={styles.label}>Short message <Text style={styles.optional}>(optional)</Text></Text><TextInput value={message} onChangeText={setMessage} maxLength={240} multiline textAlignVertical="top" placeholder="What should nearby Explorers know?" placeholderTextColor="#74747d" style={[styles.input,styles.textarea]}/><Text style={styles.counter}>{message.length}/240</Text>
 
