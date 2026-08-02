@@ -33,6 +33,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Report dependency audit details
+        shell: bash
+        run: |
+          npm audit --json > npm-audit.json || true
+          node <<'NODE'
+          const fs=require("fs");
+          const audit=JSON.parse(fs.readFileSync("npm-audit.json","utf8"));
+          console.log("AUDIT TOTALS",JSON.stringify(audit.metadata?.vulnerabilities || {}));
+          for(const [name,item] of Object.entries(audit.vulnerabilities || {})){
+            console.log(`AUDIT PACKAGE ${name} severity=${item.severity} direct=${item.isDirect} fix=${JSON.stringify(item.fixAvailable)}`);
+            for(const via of item.via || []){
+              if(typeof via==="object") console.log(`AUDIT ADVISORY source=${via.source} title=${via.title} range=${via.range} url=${via.url}`);
+            }
+            console.log(`AUDIT EFFECTS ${(item.effects || []).join(",") || "none"}`);
+            console.log(`AUDIT NODES ${(item.nodes || []).join(",") || "none"}`);
+          }
+          NODE
+
       - name: Block high severity dependency vulnerabilities
         run: npm audit --audit-level=high
 
@@ -52,4 +70,11 @@ jobs:
         with:
           name: guestbook-web-preview
           path: dist-ci
+          retention-days: 7
+
+      - name: Upload dependency audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
           retention-days: 7
