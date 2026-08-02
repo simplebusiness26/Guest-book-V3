@@ -1,10 +1,5 @@
 import React,{useEffect,useState} from "react";
-import {
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView
-} from "react-native";
+import {Text,StyleSheet,Pressable,ScrollView} from "react-native";
 import {router} from "expo-router";
 import {supabase} from "../services/supabase";
 
@@ -12,13 +7,10 @@ export default function Menu(){
   const [userType,setUserType]=useState(null);
   const [loggedIn,setLoggedIn]=useState(false);
 
-  useEffect(()=>{
-    loadUser();
-  },[]);
+  useEffect(()=>{loadUser();},[]);
 
   async function loadUser(){
     const {data:{user}}=await supabase.auth.getUser();
-
     if(!user){
       setLoggedIn(false);
       setUserType(null);
@@ -26,16 +18,13 @@ export default function Menu(){
     }
 
     setLoggedIn(true);
-
     const {data}=await supabase
       .from("profiles")
       .select("account_type,is_admin")
       .eq("id",user.id)
       .single();
 
-    if(data){
-      setUserType(data.is_admin ? "admin" : data.account_type);
-    }
+    if(data) setUserType(data.is_admin ? "admin" : data.account_type);
   }
 
   async function logout(){
@@ -65,6 +54,12 @@ export default function Menu(){
         </Pressable>
       )}
 
+      {userType==="explorer" && (
+        <Pressable style={styles.leaderboardItem} onPress={()=>router.push("/leaderboards")}>
+          <Text style={styles.text}>🏆 Explorer Leaderboards</Text>
+        </Pressable>
+      )}
+
       {userType==="manager" && (
         <Pressable style={styles.managerItem} onPress={()=>router.push("/manager/dashboard")}>
           <Text style={styles.text}>📊 Manager Dashboard</Text>
@@ -82,7 +77,6 @@ export default function Menu(){
           <Pressable style={styles.item} onPress={()=>router.push("/auth/login")}>
             <Text style={styles.text}>Login</Text>
           </Pressable>
-
           <Pressable style={styles.item} onPress={()=>router.push("/auth/signup")}>
             <Text style={styles.text}>Create Account</Text>
           </Pressable>
@@ -105,6 +99,7 @@ const styles=StyleSheet.create({
   item:{backgroundColor:"#222",padding:16,borderRadius:10,marginBottom:15},
   activityItem:{backgroundColor:"#5633a8",padding:16,borderRadius:10,marginBottom:15},
   eventsItem:{backgroundColor:"#8a3ffc",padding:16,borderRadius:10,marginBottom:15},
+  leaderboardItem:{backgroundColor:"#72520d",padding:16,borderRadius:10,marginBottom:15},
   managerItem:{backgroundColor:"#275bd6",padding:16,borderRadius:10,marginBottom:15},
   text:{color:"white",fontWeight:"bold",textAlign:"center"},
   logout:{backgroundColor:"#cc0000",padding:16,borderRadius:10,marginTop:20},
