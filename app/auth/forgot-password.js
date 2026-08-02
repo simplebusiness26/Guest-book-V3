@@ -11,15 +11,34 @@ import {
 import {router} from "expo-router";
 import {supabase} from "../../services/supabase";
 
-function getResetRedirectUrl(){
-  if(Platform.OS==="web" && typeof window!=="undefined"){
-    const configuredUrl=process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/,"");
-    const publicOrigin=configuredUrl || window.location.origin;
+const RECOVERY_STORAGE_KEY="guestbook-password-recovery";
 
-    return `${publicOrigin}/auth/update-password`;
+function getResetRedirectUrl(){
+  if(Platform.OS!=="web" || typeof window==="undefined"){
+    return undefined;
   }
 
-  return undefined;
+  const configuredUrl=process.env.EXPO_PUBLIC_APP_URL?.trim();
+  const baseUrl=configuredUrl || window.location.origin;
+
+  try{
+    return new URL("/auth/update-password",baseUrl).toString();
+  }catch{
+    return `${baseUrl.replace(/\/$/,"")}/auth/update-password`;
+  }
+}
+
+function rememberRecoveryRequest(email){
+  if(Platform.OS!=="web" || typeof window==="undefined") return;
+
+  try{
+    window.localStorage.setItem(
+      RECOVERY_STORAGE_KEY,
+      JSON.stringify({email,requestedAt:Date.now()})
+    );
+  }catch(error){
+    console.log("Could not store password recovery request",error);
+  }
 }
 
 export default function ForgotPassword(){
@@ -39,19 +58,24 @@ export default function ForgotPassword(){
     setLoading(true);
     setError("");
 
-    const redirectTo=getResetRedirectUrl();
-    const result=redirectTo
-      ? await supabase.auth.resetPasswordForEmail(cleanEmail,{redirectTo})
-      : await supabase.auth.resetPasswordForEmail(cleanEmail);
+    try{
+      // A recovery page must never inherit another account's active session.
+      await supabase.auth.signOut({scope:"local"});
+      rememberRecoveryRequest(cleanEmail);
 
-    setLoading(false);
+      const redirectTo=getResetRedirectUrl();
+      const {error:resetError}=redirectTo
+        ? await supabase.auth.resetPasswordForEmail(cleanEmail,{redirectTo})
+        : await supabase.auth.resetPasswordForEmail(cleanEmail);
 
-    if(result.error){
-      setError(result.error.message || "The reset email could not be sent.");
-      return;
+      if(resetError) throw resetError;
+      setSent(true);
+    }catch(resetError){
+      console.log(resetError);
+      setError(resetError.message || "The reset email could not be sent.");
+    }finally{
+      setLoading(false);
     }
-
-    setSent(true);
   }
 
   if(sent){
@@ -61,7 +85,7 @@ export default function ForgotPassword(){
           <Text style={styles.successIcon}>✉️</Text>
           <Text style={styles.title}>Check your email</Text>
           <Text style={styles.message}>
-            If an account exists for {email.trim()}, a password-reset link has been sent. Open the link on this device to choose a new password.
+            If an account exists for {email.trim()}, a password-reset link has been sent. Open the newest link on this device to choose a new password.
           </Text>
         </View>
 
