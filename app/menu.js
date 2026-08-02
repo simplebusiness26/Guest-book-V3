@@ -55,9 +55,14 @@ export default function Menu(){
       )}
 
       {userType==="explorer" && (
-        <Pressable style={styles.leaderboardItem} onPress={()=>router.push("/leaderboards")}>
-          <Text style={styles.text}>🏆 Explorer Leaderboards</Text>
-        </Pressable>
+        <>
+          <Pressable style={styles.scanItem} onPress={()=>router.push("/scan")}>
+            <Text style={styles.text}>📷 Scan Verified Review QR</Text>
+          </Pressable>
+          <Pressable style={styles.leaderboardItem} onPress={()=>router.push("/leaderboards")}>
+            <Text style={styles.text}>🏆 Explorer Leaderboards</Text>
+          </Pressable>
+        </>
       )}
 
       {userType==="manager" && (
@@ -99,6 +104,7 @@ const styles=StyleSheet.create({
   item:{backgroundColor:"#222",padding:16,borderRadius:10,marginBottom:15},
   activityItem:{backgroundColor:"#5633a8",padding:16,borderRadius:10,marginBottom:15},
   eventsItem:{backgroundColor:"#8a3ffc",padding:16,borderRadius:10,marginBottom:15},
+  scanItem:{backgroundColor:"#0c6b45",padding:16,borderRadius:10,marginBottom:15},
   leaderboardItem:{backgroundColor:"#72520d",padding:16,borderRadius:10,marginBottom:15},
   managerItem:{backgroundColor:"#275bd6",padding:16,borderRadius:10,marginBottom:15},
   text:{color:"white",fontWeight:"bold",textAlign:"center"},
