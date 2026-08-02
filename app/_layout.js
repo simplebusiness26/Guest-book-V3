@@ -15,6 +15,7 @@ export default function Layout(){
           <Stack.Screen name="menu"/>
           <Stack.Screen name="map"/>
           <Stack.Screen name="scan"/>
+          <Stack.Screen name="qr/[code]"/>
           <Stack.Screen name="saved"/>
           <Stack.Screen name="profile"/>
           <Stack.Screen name="profile/[id]"/>
