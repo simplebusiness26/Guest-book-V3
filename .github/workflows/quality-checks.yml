@@ -42,6 +42,9 @@ jobs:
       - name: Verify Link-ups and Live Discovery
         run: npm run verify:live
 
+      - name: Verify Link-up create navigation
+        run: node scripts/verify-linkup-create-navigation.cjs
+
       - name: Check Expo project
         run: npx expo-doctor
 
@@ -49,6 +52,9 @@ jobs:
         env:
           CI: true
         run: npx expo export --platform web --output-dir dist-ci
+
+      - name: Verify create route in web bundle
+        run: grep -R --fixed-strings "/linkups/create" dist-ci >/dev/null
 
       - name: Upload web build
         uses: actions/upload-artifact@v4
