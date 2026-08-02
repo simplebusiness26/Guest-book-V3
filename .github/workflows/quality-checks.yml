@@ -51,6 +51,23 @@ jobs:
           }
           NODE
 
+      - name: Test non-breaking dependency fixes
+        shell: bash
+        run: |
+          cp package-lock.json package-lock.original.json
+          npm audit fix --package-lock-only || true
+          cp package-lock.json package-lock.safe-fix.json
+          npm audit --json > npm-audit-after-safe-fix.json || true
+          node <<'NODE'
+          const fs=require("fs");
+          const audit=JSON.parse(fs.readFileSync("npm-audit-after-safe-fix.json","utf8"));
+          console.log("SAFE FIX AUDIT TOTALS",JSON.stringify(audit.metadata?.vulnerabilities || {}));
+          NODE
+          echo "SAFE FIX LOCKFILE DIFF START"
+          git diff -- package-lock.json || true
+          echo "SAFE FIX LOCKFILE DIFF END"
+          mv package-lock.original.json package-lock.json
+
       - name: Block high severity dependency vulnerabilities
         run: npm audit --audit-level=high
 
@@ -76,5 +93,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: npm-audit-report
-          path: npm-audit.json
+          path: |
+            npm-audit.json
+            npm-audit-after-safe-fix.json
+            package-lock.safe-fix.json
           retention-days: 7
