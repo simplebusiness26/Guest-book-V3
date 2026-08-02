@@ -13,7 +13,7 @@ function defaultTimes(){
   return {start:toLocalInputValue(start),end:toLocalInputValue(end)};
 }
 
-export default function LinkupForm({initial,onSubmit,submitLabel="Create Link-up",working=false}){
+export default function LinkupForm({initial,onSubmit,submitLabel="Create Link-up",working=false,titleOnly=false}){
   const defaults=useMemo(defaultTimes,[]);
   const [title,setTitle]=useState(initial?.title || "");
   const [description,setDescription]=useState(initial?.description || "");
@@ -48,30 +48,44 @@ export default function LinkupForm({initial,onSubmit,submitLabel="Create Link-up
   async function submit(){
     if(working) return;
     setError("");
+
+    const cleanTitle=title.trim();
     const startIso=localInputToIso(startsAt);
     const endIso=localInputToIso(endsAt);
     const limit=Number(maxAttendees);
 
-    if(title.trim().length<3) return setError("Add a title with at least three characters.");
-    if(description.trim().length<10) return setError("Add a little more detail about the Link-up.");
-    if(!startIso || !endIso) return setError("Choose a valid start and end time.");
-    if(new Date(endIso)<=new Date(startIso)) return setError("The end time must be after the start time.");
-    if(!area.trim() || !locationName.trim()) return setError("Add the area and public meeting place.");
-    if(!Number.isInteger(limit) || limit<2 || limit>50) return setError("Attendance must be between 2 and 50 people.");
+    if(cleanTitle.length<3 || cleanTitle.length>100){
+      return setError("Add a title with between 3 and 100 characters.");
+    }
+
+    if(!titleOnly){
+      if(description.trim().length<10) return setError("Add a little more detail about the Link-up.");
+      if(!startIso || !endIso) return setError("Choose a valid start and end time.");
+      if(new Date(endIso)<=new Date(startIso)) return setError("The end time must be after the start time.");
+      if(!area.trim() || !locationName.trim()) return setError("Add the area and public meeting place.");
+      if(!Number.isInteger(limit) || limit<2 || limit>50) return setError("Attendance must be between 2 and 50 people.");
+    }
+
+    const fallbackStart=localInputToIso(defaults.start);
+    const safeStart=startIso || fallbackStart;
+    const safeEnd=(endIso && new Date(endIso)>new Date(safeStart))
+      ? endIso
+      : new Date(new Date(safeStart).getTime()+2*60*60*1000).toISOString();
+    const safeLimit=Number.isInteger(limit) && limit>=2 && limit<=50 ? limit : 8;
 
     try{
       await onSubmit({
-        p_title:title.trim(),
+        p_title:cleanTitle,
         p_description:description.trim(),
         p_category:category,
-        p_starts_at:startIso,
-        p_ends_at:endIso,
+        p_starts_at:safeStart,
+        p_ends_at:safeEnd,
         p_area:area.trim(),
         p_location_name:locationName.trim(),
         p_meeting_point_details:meetingDetails.trim(),
         p_latitude:latitude,
         p_longitude:longitude,
-        p_max_attendees:limit,
+        p_max_attendees:safeLimit,
         p_visibility:visibility
       });
     }catch(submitError){
