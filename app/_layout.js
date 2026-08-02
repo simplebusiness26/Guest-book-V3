@@ -29,6 +29,15 @@ export default function Layout(){
           <Stack.Screen name="leaderboards"/>
           <Stack.Screen name="notifications"/>
 
+          <Stack.Screen name="linkups/index"/>
+          <Stack.Screen name="linkups/create"/>
+          <Stack.Screen name="linkups/[id]"/>
+          <Stack.Screen name="linkups/edit/[id]"/>
+          <Stack.Screen name="linkups/board/[id]"/>
+          <Stack.Screen name="live"/>
+          <Stack.Screen name="checkins/create"/>
+          <Stack.Screen name="safety/blocked"/>
+
           <Stack.Screen name="auth/signup"/>
           <Stack.Screen name="auth/login"/>
           <Stack.Screen name="auth/verify"/>
