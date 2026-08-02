@@ -51,6 +51,11 @@ export default function Layout(){
           <Stack.Screen name="activity-clubs/edit/[id]"/>
           <Stack.Screen name="activity-clubs/message-board/[id]"/>
 
+          <Stack.Screen name="events/index"/>
+          <Stack.Screen name="events/[id]"/>
+          <Stack.Screen name="events/add"/>
+          <Stack.Screen name="events/edit/[id]"/>
+
           <Stack.Screen name="admin/claims"/>
         </Stack>
       </NotificationProvider>

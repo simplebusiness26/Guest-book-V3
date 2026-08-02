@@ -55,6 +55,10 @@ export default function Menu(){
         <Text style={styles.text}>🏃 Explore Activity Clubs</Text>
       </Pressable>
 
+      <Pressable style={styles.eventsItem} onPress={()=>router.push("/events")}>
+        <Text style={styles.text}>🎉 Explore Events</Text>
+      </Pressable>
+
       {loggedIn && (
         <Pressable style={styles.item} onPress={()=>router.push("/profile")}>
           <Text style={styles.text}>👤 Profile</Text>
@@ -100,6 +104,7 @@ const styles=StyleSheet.create({
   title:{fontSize:32,fontWeight:"bold",marginBottom:30},
   item:{backgroundColor:"#222",padding:16,borderRadius:10,marginBottom:15},
   activityItem:{backgroundColor:"#5633a8",padding:16,borderRadius:10,marginBottom:15},
+  eventsItem:{backgroundColor:"#8a3ffc",padding:16,borderRadius:10,marginBottom:15},
   managerItem:{backgroundColor:"#275bd6",padding:16,borderRadius:10,marginBottom:15},
   text:{color:"white",fontWeight:"bold",textAlign:"center"},
   logout:{backgroundColor:"#cc0000",padding:16,borderRadius:10,marginTop:20},

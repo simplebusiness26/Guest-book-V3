@@ -13,6 +13,7 @@ import {router,useFocusEffect} from "expo-router";
 import {supabase} from "../../services/supabase";
 import QRCodeGenerator from "../../components/QRCodeGenerator";
 import {useFeedback} from "../../context/FeedbackContext";
+import {formatEventDate,formatEventPrice} from "../../utils/events";
 
 const ENABLED_STATUSES=["active","trial"];
 
@@ -89,6 +90,7 @@ export default function ManagerDashboard(){
   const [businesses,setBusinesses]=useState([]);
   const [properties,setProperties]=useState([]);
   const [clubs,setClubs]=useState([]);
+  const [events,setEvents]=useState([]);
   const [memberships,setMemberships]=useState([]);
   const [memberProfiles,setMemberProfiles]=useState({});
   const [workingId,setWorkingId]=useState(null);
@@ -127,13 +129,15 @@ export default function ManagerDashboard(){
       requestResult,
       businessResult,
       propertyResult,
-      clubResult
+      clubResult,
+      eventResult
     ]=await Promise.all([
       supabase.from("manager_capabilities").select("*").eq("user_id",currentUser.id).maybeSingle(),
       supabase.from("manager_capability_requests").select("capability,status").eq("user_id",currentUser.id),
       supabase.from("businesses").select("*").eq("owner_id",currentUser.id).order("name",{ascending:true}),
       supabase.from("properties").select("*").eq("owner_id",currentUser.id).order("created_at",{ascending:false}),
-      supabase.from("activity_clubs").select("*").eq("manager_id",currentUser.id).order("created_at",{ascending:false})
+      supabase.from("activity_clubs").select("*").eq("manager_id",currentUser.id).order("created_at",{ascending:false}),
+      supabase.from("events").select("*").eq("manager_id",currentUser.id).order("starts_at",{ascending:true})
     ]);
 
     if(capabilityResult.error){
@@ -158,6 +162,7 @@ export default function ManagerDashboard(){
     setBusinesses(businessResult.data || []);
     setProperties(propertyResult.data || []);
     setClubs(clubResult.data || []);
+    setEvents(eventResult.data || []);
 
     const clubIds=(clubResult.data || []).map(club=>club.id);
 
@@ -588,18 +593,53 @@ export default function ManagerDashboard(){
 
       <View style={styles.section}>
         <CapabilityHeader
-          title="🎉 Events"
+          title={`🎉 Events (${events.length})`}
           status={capabilities.events_status}
           requestStatus={requests.events}
           onRequest={()=>requestCapability("events","Events")}
         />
 
-        {eventsEnabled ? (
-          <EmptyCard
-            title="Events enabled"
-            text="Event listing controls will use the same address picker and QR system when the Events capability is built."
-          />
-        ) : (
+        {eventsEnabled ? <>
+          {events.length===0 && (
+            <EmptyCard title="No events yet" text="Create your first public event listing."/>
+          )}
+
+          {events.map(event=>(
+            <View key={event.id} style={styles.card}>
+              <View style={styles.eventHeading}>
+                <Text style={styles.cardTitle}>{event.name}</Text>
+                <Text style={styles.eventStatus}>{event.status}</Text>
+              </View>
+              <Text style={styles.cardSub}>{event.category} · {formatEventPrice(event.price)}</Text>
+              <Text style={styles.eventDate}>📅 {formatEventDate(event.starts_at)}</Text>
+              <Text style={styles.cardSub}>📍 {event.location || event.address}</Text>
+
+              <QRBlock type="event" id={event.id}>
+                <QRCodeGenerator eventId={event.id} size={120}/>
+              </QRBlock>
+
+              <View style={styles.buttonRow}>
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={()=>router.push(`/events/edit/${event.id}`)}
+                >
+                  <Text style={styles.secondaryButtonText}>Edit</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.darkButton}
+                  onPress={()=>router.push(`/events/${event.id}`)}
+                >
+                  <Text style={styles.buttonText}>View listing</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+
+          <Pressable style={styles.addButton} onPress={()=>router.push("/events/add")}>
+            <Text style={styles.buttonText}>➕ Add Event</Text>
+          </Pressable>
+        </> : (
           <LockedCard text="Request the Events capability to create and manage event listings."/>
         )}
       </View>
@@ -659,6 +699,9 @@ const styles=StyleSheet.create({
   clubEyebrow:{fontSize:11,fontWeight:"bold",color:"#5633a8",letterSpacing:0.6,marginBottom:7},
   cardTitle:{fontSize:21,fontWeight:"bold"},
   cardSub:{fontSize:15,color:"#666",marginTop:5},
+  eventHeading:{flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:10},
+  eventStatus:{fontSize:11,fontWeight:"bold",textTransform:"uppercase",color:"#5633a8",backgroundColor:"#eae4ff",paddingHorizontal:9,paddingVertical:5,borderRadius:16,overflow:"hidden"},
+  eventDate:{fontSize:14,fontWeight:"600",color:"#3f3550",marginTop:10,lineHeight:20},
   capacityRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:10},
   memberCount:{fontWeight:"700",color:"#5633a8"},
   fullPill:{backgroundColor:"#ffe0e0",color:"#9d1c1c",fontSize:12,fontWeight:"bold",paddingHorizontal:9,paddingVertical:5,borderRadius:20,overflow:"hidden"},

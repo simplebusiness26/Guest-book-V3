@@ -87,6 +87,13 @@ export default function Home(){
       )}
 
       <Pressable
+        style={styles.eventsButton}
+        onPress={()=>router.push("/events")}
+      >
+        <Text style={styles.buttonText}>🎉 Explore Events</Text>
+      </Pressable>
+
+      <Pressable
         style={styles.primaryButton}
         onPress={()=>router.push("/map")}
       >
@@ -184,6 +191,13 @@ const styles=StyleSheet.create({
     width:"90%",
     padding:16,
     borderRadius:12
+  },
+  eventsButton:{
+    backgroundColor:"#5633a8",
+    width:"90%",
+    padding:16,
+    borderRadius:12,
+    marginBottom:15
   },
   adminButton:{
     backgroundColor:"#6600ff",
