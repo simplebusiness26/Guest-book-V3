@@ -3,6 +3,7 @@ import {StyleSheet,View} from "react-native";
 import {useLocalSearchParams} from "expo-router";
 import ExplorerProfileScreen from "../../components/ExplorerProfileScreen";
 import ProfileSocialBar from "../../components/ProfileSocialBar";
+import ProfileSafetyActions from "../../components/ProfileSafetyActions";
 
 export default function PublicProfile(){
   const {id}=useLocalSearchParams();
@@ -11,6 +12,7 @@ export default function PublicProfile(){
   return(
     <View style={styles.screen}>
       <ProfileSocialBar profileId={profileId}/>
+      <ProfileSafetyActions profileId={profileId}/>
       <ExplorerProfileScreen profileId={profileId}/>
     </View>
   );

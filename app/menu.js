@@ -56,6 +56,15 @@ export default function Menu(){
 
       {userType==="explorer" && (
         <>
+          <Pressable style={styles.liveItem} onPress={()=>router.push("/live")}>
+            <Text style={styles.text}>📡 Live Nearby</Text>
+          </Pressable>
+          <Pressable style={styles.linkupItem} onPress={()=>router.push("/linkups")}>
+            <Text style={styles.text}>🤝 Link-ups</Text>
+          </Pressable>
+          <Pressable style={styles.checkinItem} onPress={()=>router.push("/checkins/create")}>
+            <Text style={styles.text}>📍 Check in</Text>
+          </Pressable>
           <Pressable style={styles.feedItem} onPress={()=>router.push("/feed")}>
             <Text style={styles.text}>✨ Explorer Feed</Text>
           </Pressable>
@@ -67,6 +76,9 @@ export default function Menu(){
           </Pressable>
           <Pressable style={styles.leaderboardItem} onPress={()=>router.push("/leaderboards")}>
             <Text style={styles.text}>🏆 Explorer Leaderboards</Text>
+          </Pressable>
+          <Pressable style={styles.safetyItem} onPress={()=>router.push("/safety/blocked")}>
+            <Text style={styles.text}>🛡️ Blocked Explorers</Text>
           </Pressable>
         </>
       )}
@@ -110,10 +122,14 @@ const styles=StyleSheet.create({
   item:{backgroundColor:"#222",padding:16,borderRadius:10,marginBottom:15},
   activityItem:{backgroundColor:"#5633a8",padding:16,borderRadius:10,marginBottom:15},
   eventsItem:{backgroundColor:"#8a3ffc",padding:16,borderRadius:10,marginBottom:15},
+  liveItem:{backgroundColor:"#164f6d",padding:16,borderRadius:10,marginBottom:15},
+  linkupItem:{backgroundColor:"#3212b6",padding:16,borderRadius:10,marginBottom:15},
+  checkinItem:{backgroundColor:"#116246",padding:16,borderRadius:10,marginBottom:15},
   feedItem:{backgroundColor:"#3212b6",padding:16,borderRadius:10,marginBottom:15},
   discoveryItem:{backgroundColor:"#3b2477",padding:16,borderRadius:10,marginBottom:15},
   scanItem:{backgroundColor:"#0c6b45",padding:16,borderRadius:10,marginBottom:15},
   leaderboardItem:{backgroundColor:"#72520d",padding:16,borderRadius:10,marginBottom:15},
+  safetyItem:{backgroundColor:"#5c2630",padding:16,borderRadius:10,marginBottom:15},
   managerItem:{backgroundColor:"#275bd6",padding:16,borderRadius:10,marginBottom:15},
   text:{color:"white",fontWeight:"bold",textAlign:"center"},
   logout:{backgroundColor:"#cc0000",padding:16,borderRadius:10,marginTop:20},

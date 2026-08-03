@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "verify:social": "node scripts/verify-social-layer.cjs"
+    "verify:social": "node scripts/verify-social-layer.cjs",
+    "verify:live": "node scripts/verify-linkups-live.cjs && node scripts/verify-linkups-hardening.cjs"
   },
   "dependencies": {
     "@react-navigation/native": "^7.3.14",

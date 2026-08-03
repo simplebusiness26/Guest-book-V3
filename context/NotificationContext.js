@@ -15,6 +15,11 @@ export function NotificationProvider({children}){
       return 0;
     }
 
+    const {error:refreshError}=await supabase.rpc("refresh_live_system");
+    if(refreshError && !String(refreshError.message || "").includes("Authentication")){
+      console.log("Live reminder refresh error",refreshError);
+    }
+
     const {count,error}=await supabase
       .from("notifications")
       .select("id",{count:"exact",head:true})
